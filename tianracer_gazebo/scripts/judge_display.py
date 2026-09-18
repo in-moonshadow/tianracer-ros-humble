@@ -24,7 +24,7 @@ from std_msgs.msg import String
 
 TITLE = 'Tianbot 官方监控评分系统'
 WIN_W, WIN_H = 1000, 400
-# 原版：数字用 DSEG7Classic 数码管字体，标签用 times。
+# 数字用 DSEG7Classic 数码管字体，标签用 times。
 # 实际安装的族名可能带空格（DSEG7 Classic），且 times 常以 Times New Roman 等替代，
 # 故给出候选链，按优先级取第一个可用的。
 FONT_DIGIT_CANDS = ['DSEG7Classic', 'DSEG7 Classic']
@@ -300,7 +300,7 @@ def _make_window(node):
     if _norm_family(digit_family) not in [_norm_family(f) for f in FONT_DIGIT_CANDS]:
         node.get_logger().warn(
             f'未找到 DSEG 数码管字体，数字回退为 {digit_family}'
-            '（原版界面为数码管样式；可把 DSEG7-Classic 的 ttf 装到 ~/.fonts）')
+            '（界面为数码管样式；可把 DSEG7-Classic 的 ttf 装到 ~/.fonts）')
 
     world = node.get_parameter('world').value or '-'
     robot = node.get_parameter('robot_name').value or '-'
@@ -336,7 +336,7 @@ def _make_window(node):
                 score_var.set('--')
         root.after(ui['poll_ms'], pump)
 
-    # 关闭窗口即退出节点（对应原版 "close all thread and window..." / WM_DELETE_WINDOW）
+    # 关闭窗口即退出节点（绑定 WM_DELETE_WINDOW）
     root.protocol('WM_DELETE_WINDOW', root.destroy)
     root.after(0, pump)
     root.mainloop()

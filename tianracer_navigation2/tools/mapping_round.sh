@@ -5,7 +5,7 @@
 # 用途：重建某个赛道的静态地图，把原图里的 unknown 空洞补上。
 #
 # 背景（为什么需要它）：
-#   `test_indoor` 的地图（与原版 ROS1 md5 相同）里，赛道走廊内存大片 unknown(205) 空洞，
+#   `test_indoor` 的地图里，赛道走廊内存大片 unknown(205) 空洞，
 #   而本栈 planner_server.GridBased 用 allow_unknown: false + track_unknown_space: true，
 #   未知区被当作障碍 → 车跑进空洞后规划永久失败、被停车判据终止（实测 2/9 门卡死）。
 #   这是地图覆盖不足，不能靠调 Nav2 参数解决，必须重新建图。

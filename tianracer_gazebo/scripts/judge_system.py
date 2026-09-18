@@ -23,9 +23,9 @@
 #   4'. 超过 checkpoint_timeout 秒未检测到任何检查门 -> 判终止，并停掉主程序
 #      （车在动但绕圈出不来/定位漂移时，第 4 条「停车」判罚不会触发，靠这条兜底）。
 #      阈值默认 30.0（官方规则值）；当前车速偏慢时会被触发，调试期可调大。
-#   5. reset 服务 -> 对齐原版 reset_racecar 的动作序列：模型回出生位姿 -> 重发初始位姿
+#   5. reset 服务 -> 复位动作序列：模型回出生位姿 -> 重发初始位姿
 #      （AMCL 回起点）-> 停主程序 -> 取消导航目标 -> 刹停 -> 清代价地图 -> 重置裁判状态。
-#      注意：initialpose 是等传送确认 + 沉降后再发的（异步 set_pose 无法像原版那样同步返回）。
+#      注意：initialpose 是等传送确认 + 沉降后再发的（异步 set_pose 无法同步返回）。
 #
 # 两条终止判据均出自官方规则（docs.tianbot.com/competition/f1tenth_online/contest-rules.html
 # 「电子裁判系统终止条件」附录）：「距离上一次小车运动超过 10s，会认为小车已经停止——
@@ -37,21 +37,21 @@
 # 不含启动信号订阅，也不需要。
 #
 # 得分：总分 = 门分累计 + 速度分
-#   - 门分累计：每通过一个门累加该门的固定分值，与车速无关。原版模块全局
+#   - 门分累计：每通过一个门累加该门的固定分值，与车速无关。门分值表
 #     score_list = [5,5,5,5,5,5,5,5,10]（9 门：前 8 门各 5 分、末门 10 分，合计 50 分），
 #     与 3 圈 × 3 门逐门对应；此处按门数推广为「末门 10 分、其余每门 5 分」。
 #   - 速度分：speed_score_max * min(1, 3 * score_alpha / times)，times 为总用时。
 #     3 * score_alpha = 42 秒是满速度分用时，跑进 42 秒即拿满（不额外奖励更快），
 #     超出后按 42/t 衰减：60s→24.5，120s→12.25，234s→6.29。
-#     **只在完赛结算时并入一次**（原版语义）：比赛中与提前终止时报的都是纯门分，
-#     实测原版界面在 times=90.06 时显示 25（门分），而非含速度分的 41.3。
-#   - 满分 = 50 + 35 = 85。总分取 3 位小数（原版为 round，非截断）。
+#     **只在完赛结算时并入一次**（评分语义）：比赛中与提前终止时报的都是纯门分，
+#     实测界面在 times=90.06 时显示 25（门分），而非含速度分的 41.3。
+#   - 满分 = 50 + 35 = 85。总分取 3 位小数（round，非截断）。
 #   - 停车的用时代价已体现在速度分衰减里，不另设扣分项。
 #
 # 默认参数（可经 judge_params.yaml 或 launch 覆盖）：
 #   lap_count = 3               # 需完成的圈数（每圈 3 个门）
-#   speed_score_max = 35.0      # 速度分上限（= 原版模块全局 speed_score_total 初值）
-#   score_alpha = 14.0          # 原版模块全局 alpha；满速度分用时 = 3 * alpha = 42s
+#   speed_score_max = 35.0      # 速度分上限
+#   score_alpha = 14.0          # 评分时间常数 alpha；满速度分用时 = 3 * alpha = 42s
 #   stop_time_threshold = 10.0  # 秒，停车判犯规阈值（官方规则：超 10s 未运动即停止计时）
 #   checkpoint_timeout = 30.0   # 秒，过门超时终止阈值（官方规则：距上次标记点检测超 30s 即终止）。
 #                               # 注意：当前车速下单门间隔 18~51s，提速前会切掉正常比赛，调试期可调大
@@ -84,8 +84,8 @@ class Judger(Node):
     """比赛裁判节点：模型校验 + 停车检测 + 检查门判定 + 评分 + 控制。"""
 
     DOORS_PER_LAP = 3  # 每圈检查门数量（check_points.yaml 6 点两两配对 -> 3 门）
-    # 门分值表（原版模块全局 score_list）：末门 10 分、其余每门 5 分。
-    # 默认 3 圈 × 3 门 = 9 门 -> [5,5,5,5,5,5,5,5,10]，与原版逐元素一致，合计 50 分。
+    # 门分值表 score_list：末门 10 分、其余每门 5 分。
+    # 默认 3 圈 × 3 门 = 9 门 -> [5,5,5,5,5,5,5,5,10]，合计 50 分。
     DOOR_SCORE = 5.0
     FINAL_DOOR_SCORE = 10.0
     # gz 里的车模型名：必须与 launch 中 create 请求的 name: 'tianracer' 一致
@@ -150,13 +150,13 @@ class Judger(Node):
         self._last_position = None
 
         # 车动驱动计时：odom 回调按节流周期发布分数，使窗口用时随行驶连续更新。
-        # 原版为 time_sub + update_time_callback；重写版只在过门时发布，导致用时不动。
+        # 若只在过门时发布，界面用时会停住不动，故按节流周期连续发布。
         self._last_pub_time = 0.0
         self._initpose_timer = None       # reset 后延迟发 initialpose 的一次性定时器
 
         # 主程序（f1tenth_racer 竞速状态机）子进程句柄。
         # launch 里不含主程序，由裁判在「启动」时拉起、
-        # 在 terminate_test / reset_racecar 时杀掉。原版命令为
+        # 在 terminate_test / reset_racecar 时杀掉。拉起命令为
         #   Popen("rosrun tianracer_gazebo f1tenth_racer.py __ns:=<ns>")
         # 终止为 ps aux | grep f1tenth_racer | awk '{print "kill -9", $2}' | sh
         self._racer_proc = None
@@ -348,15 +348,15 @@ class Judger(Node):
         else:
             self._publish_score()
 
-    # ---- 评分（原版公式）----
+    # ---- 评分（依据比赛评分办法）----
 
     def _cal_racing_score(self):
-        """原版 Judge.cal_racing_score：总分 = 门分累计 + 速度分，返回总分。
+        """计算总分：总分 = 门分累计 + 速度分，返回总分。
 
-        原版的总分取 3 位小数（round 而非截断），此处对齐。
+        总分取 3 位小数（round 而非截断）。
 
-        注意 _speed_score 平时恒为 0，只在完赛结算时算一次（见 _finalize）——这是原版
-        的语义：界面的分数标签绑的是 self.scores，速度分只在过终点那一次并入
+        注意 _speed_score 平时恒为 0，只在完赛结算时算一次（见 _finalize）——
+        界面的分数标签绑的是 self.scores，速度分只在过终点那一次并入
         scores。实测：比赛中 times=90.06 时界面显示 25
         （纯门分），而 25 + 35*42/90.06 ≈ 41.3；提前终止时界面上仍是门分。
         """
@@ -394,7 +394,7 @@ class Judger(Node):
             self.get_logger().info("===== FINAL " + msg.data + " =====")
 
     # ---- 主程序（竞速状态机）生命周期 ----
-    # 对齐原版：裁判是主程序的唯一持有者——「启动」时拉起，重置/结束时杀掉。
+    # 裁判是主程序的唯一持有者——「启动」时拉起，重置/结束时杀掉。
     # 这样界面上的「目标代码已启动」才有对应语义，主程序也无需自己订阅启动信号。
 
     RACER_PKG = 'tianracer_gazebo'
@@ -408,7 +408,7 @@ class Judger(Node):
         cmd = ['ros2', 'run', self.RACER_PKG, self.RACER_EXEC,
                '--ros-args', '-p', 'use_sim_time:=true']
         if self._ns:
-            # 等价原版命令尾部的 __ns:=<ns>
+            # 命令行尾部的 __ns:=<ns>
             cmd.append(f'__ns:={self._ns}')
         env = dict(os.environ)
         # 主程序从环境变量取 world（模块级 os.getenv），由裁判的 world 参数统一决定
@@ -424,7 +424,7 @@ class Judger(Node):
     def _find_racer_pids(self):
         """扫描 /proc 找出命令行以 RACER_EXEC 结尾的进程（跳过自身）。
 
-        替代原版的 `ps aux | grep f1tenth_racer | grep -v grep`：管道里写着目标名，
+        不用 `ps aux | grep f1tenth_racer | grep -v grep`：管道里写着目标名，
         命令行会自匹配到管道自身，属于已多次踩过的坑，故改为读 /proc 且不经过 shell。
         """
         pids = []
@@ -448,7 +448,7 @@ class Judger(Node):
         """终止主程序。
 
         先收拾 Popen 句柄（连同其进程组），再扫 /proc 清理残留——裁判自身重启过时
-        句柄会丢，残留进程就成了孤儿，与原版用 ps 扫描的动机一致。
+        句柄会丢，残留进程就成了孤儿，故需扫 /proc 清理。
         """
         proc, self._racer_proc = self._racer_proc, None
         if proc is not None and proc.poll() is None:
@@ -514,11 +514,11 @@ class Judger(Node):
         """统一停止/结算入口。reason: 'finished' | 'stopped'。"""
         self._stop_flag = True
         self._state = reason
-        # 速度分只在完赛结算时并入一次（原版语义）：提前终止报的就是纯门分
+        # 速度分只在完赛结算时并入一次：提前终止报的就是纯门分
         if reason == 'finished':
             self._compute_speed_score()
         self._publish_score(final=True)
-        # 对齐原版 terminate_test：结束时停掉主程序，不再下发新目标
+        # 结束时停掉主程序，不再下发新目标
         self._kill_racer()
         if reason == 'finished':
             self.get_logger().info("Car finished the race")
@@ -539,19 +539,19 @@ class Judger(Node):
             self.get_logger().warn("emergency_brake service not available")
 
     def _reset_cb(self, req, resp):
-        """重置：按原版 reset_racecar 的动作序列把比赛环境复位。
+        """重置：按下列动作序列把比赛环境复位。
 
-        原版 reset_racecar 依次执行五个动作：
+        依次执行五个动作：
           ① rosservice call /gazebo/reset_world          模型回出生位姿
           ② rosrun tianracer_gazebo initialpose_pub.py   重发初始位姿
           ③ kill f1tenth_racer                           停主程序
           ④ rosservice call <ns>/emergency_brake         刹停
           ⑤ rosservice call <ns>/move_base/clear_costmaps 清代价地图
-        本移植版另加取消 Nav2 目标（等价原版的独立命令 movebase_goal_cancel）。
+        另加取消 Nav2 目标（等价于独立的 movebase_goal_cancel 命令）。
 
-        与原版的唯一顺序差异：initialpose 不紧跟在 reset_world 后面同步发，而是等传送
-        确认 + 一段沉降时间后再发（_schedule_init_pose）。原版 reset_world 是同步阻塞的
-        rosservice call，回来时位姿已生效；本移植版的 set_pose 是异步的，紧跟着发会让
+        **顺序差异**：initialpose 不紧跟在 reset_world 后面同步发，而是等传送
+        确认 + 一段沉降时间后再发（_schedule_init_pose）。reset_world 是同步阻塞的
+        rosservice call，回来时位姿已生效；而 set_pose 是异步的，紧跟着发会让
         AMCL 拿传送前的 odom 定位，或直接被 MessageFilter 丢弃。
         """
         self.get_logger().info("reset_racecar")
@@ -747,7 +747,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        # 裁判退出时一并收掉主程序，避免留下孤儿进程（原版 on_closing 亦如此）
+        # 裁判退出时一并收掉主程序，避免留下孤儿进程
         node._kill_racer()
         node.destroy_node()
         if rclpy.ok():

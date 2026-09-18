@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Tianracer 一键竞速入口：仿真 + 控制链 + Nav2 + 裁判，启动后到计分板窗口点「启动」发车。
 #
-# 编排三段（与 ROS 1 原版一致的分工）：
+# 编排三段：
 #   ① tianracer_on_racetrack.launch.py  gz-sim + 模型生成 + bridge + 控制链
 #   ② tianracer_navigation2/nav2.launch.py  Nav2 栈（必启：f1tenth_racer 走 navigate_to_pose）
 #   ③ judge.launch.py  裁判 + 计分板窗口（等 Nav2 active 后才起）
@@ -17,7 +17,7 @@
 # action server 未就绪时点「启动」只会得到 "navigate_to_pose action server not available"。
 # 故等 /bt_navigator 为 active 后再起裁判。
 #
-# 主程序（f1tenth_racer）**不由本 launch 启动**：对齐 ROS 1 原版，由裁判在点「启动」时
+# 主程序（f1tenth_racer）**不由本 launch 启动**：由裁判在点「启动」时
 # subprocess.Popen 拉起、在重置/完赛/犯规时终止（见 judge_system.py 的 _spawn_racer/_kill_racer）。
 
 import os
