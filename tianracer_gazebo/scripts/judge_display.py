@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # 裁判系统监控评分窗口（tkinter），深色遥测仪表盘风格。
 #
-# 文案与交互要素取自 ROS1 原版 judge_system.so 的字符串常量（原界面随闭源 .so 一并丢失）：
+# 界面文案与交互要素沿用 ROS 1 原版监控评分系统的样式：
 #   标题   : "Tianbot 官方监控评分系统"        几何: 1000x400
 #   字体   : 数字用 DSEG7Classic（数码管），标签用 Noto Sans CJK SC
 #   标签   : ROBOT_NAME / WORLD_NAME / 总分数为 / 用时
@@ -25,7 +25,7 @@ from std_msgs.msg import String
 TITLE = 'Tianbot 官方监控评分系统'
 WIN_W, WIN_H = 1000, 400
 # 原版：数字用 DSEG7Classic 数码管字体，标签用 times。
-# 实际安装的族名可能带空格（DSEG7 Classic），且 times 在本机常以 Times New Roman 等替代，
+# 实际安装的族名可能带空格（DSEG7 Classic），且 times 常以 Times New Roman 等替代，
 # 故给出候选链，按优先级取第一个可用的。
 FONT_DIGIT_CANDS = ['DSEG7Classic', 'DSEG7 Classic']
 FONT_LABEL_CANDS = ['Noto Sans CJK SC', 'Source Han Sans SC', 'WenQuanYi Zen Hei',

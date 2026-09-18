@@ -16,7 +16,7 @@
 #   ① 起环境（本脚本）：
 #        WORLD=test_indoor bash tianracer_navigation2/tools/mapping_manual_start.sh start
 #   ② 另开一个终端遥控（需先 source）：
-#        source /opt/ros/humble/setup.bash && source ~/tianracer-humble/install/setup.bash
+#        source /opt/ros/humble/setup.bash && source <工作区路径>/install/setup.bash
 #        ros2 run teleop_twist_keyboard teleop_twist_keyboard
 #   ③ 走完赛道后在**第一个终端**回车，或另开终端跑：
 #        WORLD=test_indoor bash tianracer_navigation2/tools/mapping_manual_start.sh save

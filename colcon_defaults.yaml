@@ -1,6 +1,6 @@
 # colcon 默认参数（colcon-defaults 扩展会自动读取本文件）。
 #
-# 为什么需要：本机存在两套 OpenCV —— apt 的 4.5.4（/usr/include/opencv4，Humble 配套）
+# 为什么需要：系统上可能同时存在两套 OpenCV —— apt 的 4.5.4（/usr/include/opencv4，Humble 配套）
 # 与 /usr/local 源码安装的 4.11。CMake 的 find_package(OpenCV) 默认优先命中 /usr/local
 # 的 4.11，而 4.11 把 cv::SimpleBlobDetector::setParams/getParams 改成了纯虚函数，
 # 导致 src/costmap_converter 的 blob_detector.h（仍是旧签名）编译失败：
@@ -8,7 +8,7 @@
 # 因此显式把 OpenCV 指向 apt 的 4.5.4。
 #
 # 影响范围：仅作用于 colcon build 的 cmake 参数；本工作区只有 costmap_converter 用到 OpenCV。
-# 注意：若在其他机器上 apt 未安装 libopencv-dev（无该路径），请删除本文件或改成本机路径。
+# 注意：若你的机器上未安装 libopencv-dev（无该路径），请删除本文件或改为实际的 OpenCV 路径。
 build:
   cmake-args:
     - -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4

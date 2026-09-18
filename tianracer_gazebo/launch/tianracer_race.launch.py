@@ -37,7 +37,7 @@ from launch_ros.actions import Node
 default_namespace = os.environ.get("TIANBOT_NAME", "")
 default_namespace = f"" if default_namespace == '' or default_namespace == '/' else default_namespace
 
-# Nav2 就绪等待上限。记忆里 Nav2 会偶发卡死（lifecycle_manager_navigation 停在
+# Nav2 就绪等待上限。Nav2 会偶发卡死（lifecycle_manager_navigation 停在
 # Configuring、bt_navigator 始终 unconfigured），故必须带超时，不能无限等。
 NAV2_READY_TIMEOUT = 240.0
 POLL_INTERVAL = 2.0

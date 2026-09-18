@@ -30,8 +30,7 @@ source /opt/ros/humble/setup.bash
 source "$WS/install/setup.bash"
 
 # 前置残留检查：上一轮的进程必须全部回收，否则本轮拒绝开始。
-# 用户明确要求：每次重新测试前必须把上一次的进程清理干净。
-# 注意不能用 `pgrep/pkill -f`：本脚本自身与 harness wrapper 的命令行里都含有这些关键字，
+# 注意不能用 `pgrep/pkill -f`：本脚本自身的命令行里就含有这些关键字，
 # 会自匹配（本项目已因此误杀过自己的 shell 多次）。这里用 ps 输出 + 显式排除自身。
 echo "[$R] ===== 前置残留检查 ====="
 resid=$(ps -eo pid,cmd --no-headers | awk '

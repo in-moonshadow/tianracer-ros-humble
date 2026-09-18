@@ -204,8 +204,8 @@ PYEOF
 fi
 
 # ── 清理（显式 PID + DDS 持有者，写法照抄 dwb_round.sh 的已验证版本）──
-# ⚠️ 不要用 `pgrep -f <pat>` / `pkill -f` 做收尾：会匹配到自己的 shell 与 harness wrapper
-#    （见记忆 proc-scan-self-match-trap）。用 lsof 找 DDS 持有者并按 cmdline 排除 ros2 daemon。
+# ⚠️ 不要用 `pgrep -f <pat>` / `pkill -f` 做收尾：它会匹配到本脚本自身的命令行。
+#    用 lsof 找 DDS 持有者并按 cmdline 排除 ros2 daemon。
 echo "[$R] ===== 清理（显式 PID）====="
 while read -r p; do
   [ -n "$p" ] && kill -TERM "$p" 2>/dev/null && echo "  TERM $p"

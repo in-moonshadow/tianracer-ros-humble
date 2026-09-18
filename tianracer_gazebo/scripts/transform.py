@@ -20,7 +20,7 @@ class NavSim(Node):
         # 轴距：取自本仿真链实际使用的机器人模型 tianracer_gazebo/urdf/tianracer.xacro
         # （前轴 steering_hinge_joint x=+0.13、后轴 rear_wheel_joint x=-0.13 ⇒ 0.26m）。
         #
-        # ⚠️ 本机存在**两份几何不同的机器人模型**，勿混用：
+        # ⚠️ 本仓库存在**两份几何不同的机器人模型**，勿混用：
         #   - 仿真链（本文件/servo_commands 驱动）：tianracer_gazebo/urdf/tianracer.xacro
         #       → 前轮 x=+0.13、后轮 x=-0.13，轴距 **0.26**
         #   - TF/RViz 用：tianracer_description/urdf/tianracer_compact.urdf

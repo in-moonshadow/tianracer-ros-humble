@@ -17,11 +17,9 @@
 # 本文件的 amcl: 段沿用 **DWB 家族既有值**（ROS1 对齐版：DifferentialMotionModel、
 #   alpha1~4 = 0.1、laser_max_range 3.5、max_beams 180、粒子 3000/500、z_hit 0.5、
 #   z_rand 0.5），与已提交的 navfn_dwb_r1 / navfn_dwb_test_indoor / navfn_mppi* 一致；
-#   但**与 HEAD 的通用档不同**（后者仍是 OmniMotionModel legacy 版）——因为通用档那组
-#   AMCL 改动**至今未提交**（用户 2026-09-17 明确选择「AMCL 原样留着」，b997947
-#   刻意只含 BT/注入/赛道专属参数）。
-#   该组值在记忆 amcl-ros1-alignment-refuted 里**被 2v2 实测否证**（test_indoor
-#   4/9 -> 1/9），且「地图错位修好后是否反超 legacy」**至今未回答**。
+#   本档的 AMCL 与通用档一致（均为 DifferentialMotionModel + 同一组对齐参数）。
+#   该参数组在 test_indoor 的 A/B 对照中未显示性能优势，故选型依据是物理正确性
+#   （Ackermann 车无法横向平移）与仓库内部一致性，而不是实测分数。
 #   ⇒ 本档的 4/5 / 66.28 **就是在这套 AMCL 下测得的**，不是 legacy 基线的成绩。
 #     将来做任何 AMCL 相关结论前，先确认树里到底是哪一套。
 #

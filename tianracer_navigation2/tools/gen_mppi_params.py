@@ -75,8 +75,7 @@ FOLLOWPATH_TMPL = """    FollowPath:
       #   与 DWB 的 min_vel_x 同属「一个全局速度设定点无法同时服务直道与弯道」，
       #   只是 MPPI 表现为失控而非"无可行解帧"。历史对照：deadband 1.0 时巡航
       #   0.813 m/s、最好 3/9、从未走通 9 门；而 DWB 是 2.495 m/s 稳定 9/9
-      #   ⇒ **MPPI 提速方向关闭，别再试中间值**。详见项目记忆
-      #   `dwb-2-5-plateau-is-critic-structure`。
+      #   ⇒ **MPPI 提速方向关闭，别再试中间值**。
       # ⚠️ 该轮的另一处教训：本生成器基座是**通用** navfn_dwb 文件（smoother 线速度
       #   1.5），实验⑦ 曾把 vx_max 抬到 3.0 却漏改 smoother，使「规划器以为能跑
       #   3.0、实际被钳到 1.5」——mppi1 轮因此作废（cmd_vx 上限恰好 1.500、

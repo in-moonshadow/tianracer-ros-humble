@@ -130,7 +130,7 @@ else
 fi
 
 # 收尾：确认没留下仿真残留。用 [x] 括号技巧避免 grep 自身命令行被匹配到
-#（本项目有专门的记忆 [[proc-scan-self-match-trap]]，pkill/pgrep -f 的自匹配坑）。
+#（pkill/pgrep -f 存在自匹配坑）。
 resid=$(ps -eo cmd --no-headers | grep -E "[i]gn gazebo|[r]os2 launch" | head -3)
 if [ -z "$resid" ]; then echo "  OK  未留下仿真残留"
 else echo "  ⚠   有残留:"; echo "$resid" | sed 's/^/      /'; fail=1; fi

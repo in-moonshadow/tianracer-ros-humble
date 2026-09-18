@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# ROS 1 (tianracer_gazebo/scripts/judge_system.so + judge_system_node.py) -> ROS 2 Humble 重写。
+# 裁判系统：ROS 1 版本（judge_system.so + judge_system_node.py）→ ROS 2 Humble 的纯 rclpy 重写。
 #
-# judge_system.so 是 Cython 编译的闭源裁判系统（python3.8 ABI，无法在 python3.10 加载），
-# 本文件按反编译还原出的接口重写为纯 rclpy 实现：
+# 本文件实现：
 #   - md5 模型防篡改校验（md5_check.py）
 #   - 车位置监控 + 长时间未动停车检测
 #   - 检查点（赛道门）通过判定（position_check.py 的 is_intersect 算法，精确还原）
