@@ -1,6 +1,6 @@
 # Tianracer — ROS 2 Humble
 
-[中文版说明](README_CN.md)
+[中文版说明](README_CN.md) | [详细中文教程](TUTORIAL_CN.md)
 
 > **This repository is the ROS 2 Humble version of the upstream project
 > [tianracer](https://github.com/tianbot/tianracer)** — the Tianracer autonomous racing car

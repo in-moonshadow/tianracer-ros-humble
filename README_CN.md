@@ -1,6 +1,6 @@
 # 天驰无人竞速车 Tianracer — ROS 2 Humble
 
-[English](README.md)
+[English](README.md) | [详细中文教程](TUTORIAL_CN.md)
 
 > **本仓库是上游项目 [tianracer](https://github.com/tianbot/tianracer)（天之博特 Tianbot 的天驰无人竞速车平台）的
 > ROS 2 Humble 版本。** 上游项目基于 **ROS 1**；本项目是其 **ROS 2 Humble 移植与持续开发版本**，
