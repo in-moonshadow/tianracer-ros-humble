@@ -24,8 +24,8 @@ robot_name = os.getenv("TIANBOT_NAME", os.getenv("TIANRACER_NAME", ""))
 
 
 class RaceStateMachine(Node):
-    CHECK_INTERVAL = 0.1        # 秒；对齐原版 rospy.Rate(10)，判定与日志都按 10 Hz
-    # 到点判定阈值（米）。ROS1 原版为 2.15，但用的是逐轴方框比较：
+    CHECK_INTERVAL = 0.1        # 秒；判定与日志都按 10 Hz
+    # 到点判定阈值（米）。若用逐轴方框比较（阈值 2.15）：
     #   abs(gx-tx) < 2.15 and abs(gy-ty) < 2.15
     # 对角可达 3.04m。本赛道净宽约 1m、路点间距 3-8m，实测车在 (-4.94,-4.90) 距目标
     # (-4.88,-6.96) 还有 2.06m 就被判「到点」并推进路点，导致实际路线与设计圈线脱节
@@ -126,7 +126,7 @@ class RaceStateMachine(Node):
                 "Skip %s (already within %.2f m)" % (pos['name'], self.APPROACH_THRESHOLD))
             return False
 
-        # 目标须带时间戳：ROS1 原版每次都用 rospy.Time.now()，移植时丢掉了，
+        # 目标须带时间戳：每次都用 rospy.Time.now()，移植时丢掉了，
         # header.stamp 变成 0。节点以 use_sim_time=true 运行（由裁判拉起时传入），
         # 故此处取仿真时钟，与 Nav2 各节点一致。
         goal = utils.create_nav_goal(pos, stamp=self.get_clock().now().to_msg())
@@ -225,7 +225,7 @@ class RaceStateMachine(Node):
         """
         等车进入目标点阈值（APPROACH_THRESHOLD，1.0m）后推进下一个路点。
 
-        原版只按距离判定，不看 move_base 的结果状态。此处保持同一语义：Nav2 目标
+        到点判定只看距离，不看 move_base 的结果状态。此处保持同一语义：Nav2 目标
         异常结束（ABORTED/FAILED）时只告警、**不**推进路点——早先把「目标结束」
         一律当成功，导致规划失败时静默跳过全部路点空转（车原地不动却在循环）。
         改为等待后，若车始终无法接近，裁判的停车判罚会介入并终止比赛。
@@ -235,7 +235,7 @@ class RaceStateMachine(Node):
         warned = False
         while rclpy.ok():
             # 先排空回调（保证 action 回调与 TF 及时），再按 10 Hz 做 TF 查询与日志，
-            # 对齐原版 rospy.Rate(10)，避免每轮都打日志（实测曾达 ~380 行/秒）。
+            # 按 10 Hz 节流，避免每轮都打日志（实测曾达 ~380 行/秒）。
             self._spin_drain()
             now = time.monotonic()
             if now - last_check < self.CHECK_INTERVAL:

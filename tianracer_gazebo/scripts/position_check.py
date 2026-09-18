@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # ROS 1 (tianracer_gazebo/utils/position_check.py) -> ROS 2 Humble 移植。
 # 检查点（赛道门）通过判定：车本帧运动轨迹线段与检查门线段是否相交。
-# 核心算法 is_intersect / cal_distance / load_checkpoint 与 ROS1 原版完全一致，
+# 核心算法 is_intersect / cal_distance / load_checkpoint 不变，
 # 仅将 analysis() 的输入从 gazebo ModelStates 消息改为 (x, y) 位置，由调用方（judge_system）提供。
 
 import os

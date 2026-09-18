@@ -33,7 +33,7 @@ class InitialPosePublisher(Node):
         if self.remaining <= 0:
             self.destroy_timer(self.timer)
             return
-        # 等 AMCL 订阅后再发（ROS1 原版行为）：Nav2 可能比本节点晚启动，
+        # 等 AMCL 订阅后再发：Nav2 可能比本节点晚启动，
         # 早发的 initialpose 会因无订阅者被丢弃。超时后仍发布，避免无订阅者时永久阻塞。
         if self.publisher.get_subscription_count() == 0:
             self._waited += 0.5

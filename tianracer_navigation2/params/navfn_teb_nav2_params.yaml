@@ -95,7 +95,7 @@
 #   · 平滑器削角速度指令：对齐到物理值 3.95 后问题形态不变。
 #   · "TEB 算法本身弱 / 能力上限只有 DWB 的 60~68%"：那是配置全错时的假象，已推翻。
 #
-# 【ROS1 原版三套 TEB 配置的区别（本文件的对齐目标是第 1 套）】
+# 【三套 TEB 配置的区别（本文件采用第 1 套）】
 #   1. 竞速：`tianracer_navigation/param/teb_carlike/{compact,standard,fullsize}_*.yaml`
 #   2. Gazebo 演示（5.115 m/s 开阔场）：`tianracer_gazebo/config/teb/teb_local_planner_params.yaml`
 #   3. 比赛 disparity-extender 变体：`tianracer_competition/launch/param/teb_local_planner_params.yaml`
@@ -221,7 +221,7 @@ controller_server:
     min_x_velocity_threshold: 0.001   # 低于该线速度视为 0（用于 odom 判停）
     min_y_velocity_threshold: 0.5     # 低于该侧向速度视为 0
     min_theta_velocity_threshold: 0.001  # 低于该角速度视为 0
-    # failure_tolerance 0.3 -> 3.0：对齐原版 move_base 的 controller_patience: 3.0
+    # failure_tolerance 0.3 -> 3.0：对齐 move_base 的 controller_patience: 3.0
     # （tianracer_gazebo/config/teb/move_base_params.yaml）。Nav2 的语义是「控制周期
     # 超出期望周期多久就中止目标」，0.3 意味着单周期超过 0.2+0.3=0.5s 就 abort；
     # TEB 是 CPU 重的单线程优化器（enable_multithreading: False），实测一轮 22s 内
@@ -270,7 +270,7 @@ controller_server:
       # teb_autosize 在 TEB 里是 double 类型（teb_config.h:79 `double teb_autosize`，
       # 语义为 bool 但声明是 double）。ROS2 的 rcl 参数类型严格，写成 True 会在
       # configure 阶段抛 "has invalid type" 并让 controller_server 直接 FATAL，
-      # 故必须写数字 1.0（等价于原版 ROS1 的 True）。
+      # 故必须写数字 1.0（等价于布尔 True）。
       teb_autosize: 1.0                 # 允许优化过程中改变轨迹的时域长度（bool 语义，但须写 1.0）
       # 2026-09-13 全量还原 ROS1 竞速配置（tianracer_navigation/param/teb_carlike/compact）：
       # dt_ref 0.4→0.3、dt_hysteresis 0.04→0.1、lookahead 2.0→3.0、
@@ -305,7 +305,7 @@ controller_server:
       max_vel_x_backwards: 1.0          # 倒车速度上限(m/s)；实测压到 0.2 反而更慢，保持 ROS1 值
       # **不是自由参数**：必须等于 v·tan(δmax)/L —— δmax=0.6 是 transform.py 的实际舵角钳位
       # （URDF 写的 ±1 不生效），L=wheelbase=0.26。max_vel_x=1.5 时 = 3.95 rad/s。
-      # 原版写 10.5 是因为 ROS1 那份 transform.py 把 angular.z 直接当舵角传；本移植链的
+      # 写 10.5 是因为 ROS1 那份 transform.py 把 angular.z 直接当舵角传；本移植链的
       # angular.z 是**偏航角速度**，10.5 rad/s 物理上不可能。
       # 实测（2026-09-12 双通道采样）：未对齐时 TEB 规划到 max 5.664、p90 3.411，而平滑器
       # 只放 2.5 → 35.6% 的角速度样本被削、平均削 1.662 rad/s，车按比计划更宽的弧线走。
@@ -444,8 +444,8 @@ controller_server:
       h_signature_threshold: 0.1        # 同伦签名判定阈值（关闭时无效）
       obstacle_heading_threshold: 0.45  # 障碍朝向阈值（关闭时无效）
       visualize_hc_graph: False          # rviz 里画同伦图（调试用）
-      # 说明：原版仿真把 Recovery 段（shrink_horizon_* / oscillation_*）整体注释掉了，
-      # 即采用 TEB 默认值（默认已开启），故此处同样不设，保持与原版一致。
+      # 说明：仿真配置把 Recovery 段（shrink_horizon_* / oscillation_*）整体注释掉了，
+      # 即采用 TEB 默认值（默认已开启），故此处同样不设，保持一致。
       
 controller_server_rclcpp_node:
   ros__parameters:
@@ -464,10 +464,10 @@ local_costmap:
       height: 6                         # 代价地图高度(m)（滚窗模式下即窗口高度）
       resolution: 0.05                  # 栅格分辨率(m/格)；越小越精细、越耗内存
       # 以下三项对齐 ROS1 tianracer_navigation/param/teb_carlike/costmap_common_params.yaml：
-      # inflation_radius 0.3、cost_scaling_factor 10.0，且原版未设 robot_radius（用 costmap 默认 0.1）。
+      # inflation_radius 0.3、cost_scaling_factor 10.0，且未设 robot_radius（用 costmap 默认 0.1）。
       # 本文件此前由 TurtleBot3 Nav2 模板抄来，三项被放大到 2.5 / 8.0 / 0.305，在 0.96m 宽的
       # 赛道里会把走廊压成零自由代价格，导致 DWB「No valid trajectories」。
-      # 局部代价地图由 3x3 放大到 6x6（原版 4x4）：DWB 需要看到足够远的转弯才能规划过弯。
+      # 局部代价地图由 3x3 放大到 6x6（原为 4x4）：DWB 需要看到足够远的转弯才能规划过弯。
       # robot_radius 0.1 -> 0.07：URDF 车体为 0.28x0.10 的 box（半宽仅 0.05），0.1 相当于
       # 把内切半径放大一倍，致命带随之变宽、窄道里更容易出现死区。
       # ★ 对 TEB 特别重要：这个值**同时决定 TEB 硬可行性校验的几何**——校验用的不是 TEB 自己的
@@ -520,7 +520,7 @@ global_costmap:
       global_frame: <robot_namespace>/map  # 该代价地图的全局坐标系
       robot_base_frame: <robot_namespace>/base_link  # 机器人基座坐标系（footprint 以此为中心）
       use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
-      # 同 local_costmap：对齐 ROS1 原版（inflation_radius 0.3、cost_scaling_factor 10.0），
+      # 同 local_costmap：inflation_radius 0.3、cost_scaling_factor 10.0，
       # robot_radius 由模板的 0.305 降到 0.07（URDF 车体 0.28x0.10，半宽 0.05）
       robot_radius: 0.07                # 机器人半径(m)（对 TEB 硬校验的影响见上方长注释）
       resolution: 0.05                  # 栅格分辨率(m/格)；越小越精细、越耗内存
@@ -578,7 +578,7 @@ planner_server:
     GridBased:
       plugin: "nav2_navfn_planner/NavfnPlanner"  # 插件类：NavFn 全局规划器（Dijkstra 或 A*）
       # 对齐 ROS1 tianracer_navigation/param/teb_carlike/global_planner_params.yaml：
-      #   allow_unknown: false          # 原版明确关闭，注释指出须配合 track_unknown_space: true
+      #   allow_unknown: false          # 明确关闭，须配合 track_unknown_space: true
       #   default_tolerance: 0.1
       #   use_dijkstra: true
       # 本图 87.9% 为未知区，allow_unknown: true（模板默认）会让规划器穿未知区抄近路、

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # ROS 1 (tianracer_gazebo/scripts/waypoint_race/utils.py) -> ROS 2 Humble 移植。
 # 读取赛道 waypoint yaml，并构造 Nav2 导航目标与 RViz 可视化 marker。
-# 原版基于古月居教程（https://www.guyuehome.com/35146），move_base_msgs -> nav2_msgs。
+# 参考古月居教程（https://www.guyuehome.com/35146），move_base_msgs -> nav2_msgs。
 
 import yaml
 
