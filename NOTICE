@@ -16,7 +16,7 @@
 上游项目原始版本基于 **ROS 1**。本项目是其 **ROS 2 Humble** 移植与持续开发版本，主要差异：
 
 - 构建系统由 `catkin` 改为 `colcon` / `ament`，全部 Python 代码为 Python 3；
-- 仿真后端由 **Gazebo Classic** 改为 **Gazebo Sim 7 (Fortress)**，经 `ros_gz_sim` /
+- 仿真后端由 **Gazebo Classic** 改为 **Gazebo Sim 6 (Fortress)**，经 `ros_gz_sim` /
   `ros_gz_bridge` / `gz_ros2_control` 与 ROS 2 通信；
 - 导航栈由 `move_base` 改为 **Nav2**（默认 `navfn_dwb`，另提供 TEB / Smac / Theta* / MPPI 变体）；
 - 竞赛裁判系统以 `rclpy` 重新实现；
@@ -93,7 +93,7 @@ SOFTWARE.
 **`tianracer-ros-humble` is the ROS 2 Humble version of the upstream project
 [`tianracer`](https://github.com/tianbot/tianracer) by Tianbot.** It is a derivative work based on
 the upstream `humble-devel` branch. The upstream project targets ROS 1; this project is its
-ROS 2 Humble port (colcon/ament, Python 3, Gazebo Sim 7 Fortress, Nav2, an `rclpy` race judge),
+ROS 2 Humble port (colcon/ament, Python 3, Gazebo Sim 6 Fortress, Nav2, an `rclpy` race judge),
 with the real-hardware packages removed.
 
 This project is distributed under the **GNU General Public License v3.0** (see `LICENSE`), because

@@ -18,7 +18,7 @@ SLAM, Nav2 navigation, and a race judge.
 |---|---|
 | `tianracer` | Metapackage for the Tianracer racecar |
 | `tianracer_description` | URDF/xacro robot models and TF trees |
-| `tianracer_gazebo` | Simulation stack: Gazebo Sim 7 (Fortress) worlds, chassis controller, odometry bridge, race judge |
+| `tianracer_gazebo` | Simulation stack: Gazebo Sim 6 (Fortress) worlds, chassis controller, odometry bridge, race judge |
 | `tianracer_navigation2` | Nav2 configuration and launch (multiple planner/controller parameter sets, per-track auto-selection, `cmd_vel` → `ackermann_cmd` conversion) |
 | `tianracer_slam` | SLAM launches: slam_toolbox, Cartographer, GMapping; map saving |
 | `tianracer_rviz` | RViz configurations and view launches (lidar, IMU, odom, image, robot, mapping) |
@@ -28,12 +28,15 @@ SLAM, Nav2 navigation, and a race judge.
 ## Requirements
 
 - Ubuntu 22.04 with **ROS 2 Humble** (colcon / ament)
-- **Gazebo Sim 7 (Fortress)** with `ros_gz_sim`, `ros_gz_bridge`, `gz_ros2_control`
+- **Gazebo Sim 6 (Fortress)** with `ros_gz_sim`, `ros_gz_bridge`, `gz_ros2_control`
 - `ros2_control` / `ros2_controllers`, Nav2, `slam_toolbox`, `ackermann_msgs`
 - Optional: Cartographer (`cartographer_ros`), TEB (`teb_local_planner` + `costmap_converter`)
 
-Gazebo Classic is **not** compatible with the installed Gazebo Sim and is not used by this
-project — the simulation runs on Gazebo Sim 7 (Fortress) through `ros_gz`.
+Gazebo Classic is **not** used by this project. The simulation runs on **Gazebo Sim 6
+(Fortress)** through `ros_gz`, and is launched explicitly with `ign gazebo --force-version 6`:
+`gz_ros2_control` does not export plugins for Gazebo Sim 7 (Garden), so a v7 runtime fails with
+`does not export any plugins`. On a machine with both versions installed `gz sim` defaults to v7,
+which is why the version is pinned.
 
 ## Build
 

@@ -2,7 +2,7 @@
 <package format="3">
   <name>tianracer_gazebo</name>
   <version>1.0.0</version>
-  <description>tianracer 仿真栈（ROS 2 Humble 移植版）：Gazebo Sim 7 (Fortress) + ros_gz + gz_ros2_control，含赛道世界、底盘控制器、里程计桥接与竞速裁判系统</description>
+  <description>tianracer 仿真栈（ROS 2 Humble 移植版）：Gazebo Sim 6 (Fortress) + ros_gz + gz_ros2_control，含赛道世界、底盘控制器、里程计桥接与竞速裁判系统</description>
   <maintainer email="tianbot@todo.todo">tianbot</maintainer>
   <license>GPLv3</license>
 

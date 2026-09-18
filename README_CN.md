@@ -15,7 +15,7 @@ Gazebo Sim 世界、底盘控制链、SLAM、Nav2 导航，以及竞速裁判系
 |---|---|
 | `tianracer` | 元包 |
 | `tianracer_description` | URDF/xacro 机器人模型与 TF |
-| `tianracer_gazebo` | 仿真栈：Gazebo Sim 7 (Fortress) 世界、底盘控制器、里程计桥接、竞速裁判 |
+| `tianracer_gazebo` | 仿真栈：Gazebo Sim 6 (Fortress) 世界、底盘控制器、里程计桥接、竞速裁判 |
 | `tianracer_navigation2` | Nav2 配置与启动（多套规划器/控制器参数档、按赛道自动选档、`cmd_vel` → `ackermann_cmd` 转换） |
 | `tianracer_slam` | SLAM 启动：slam_toolbox / Cartographer / GMapping，以及地图保存 |
 | `tianracer_rviz` | RViz 配置与查看入口（激光、IMU、里程计、图像、模型、建图） |
@@ -25,11 +25,14 @@ Gazebo Sim 世界、底盘控制链、SLAM、Nav2 导航，以及竞速裁判系
 ## 环境要求
 
 - Ubuntu 22.04 + **ROS 2 Humble**（colcon / ament）
-- **Gazebo Sim 7 (Fortress)** 及 `ros_gz_sim`、`ros_gz_bridge`、`gz_ros2_control`
+- **Gazebo Sim 6 (Fortress)** 及 `ros_gz_sim`、`ros_gz_bridge`、`gz_ros2_control`
 - `ros2_control` / `ros2_controllers`、Nav2、`slam_toolbox`、`ackermann_msgs`
 - 可选：Cartographer（`cartographer_ros`）、TEB（`teb_local_planner` + `costmap_converter`）
 
-本项目**不使用 Gazebo Classic**（与已安装的 Gazebo Sim 冲突），仿真统一走 Gazebo Sim 7 (Fortress)。
+本项目**不使用 Gazebo Classic**。仿真统一走 **Gazebo Sim 6 (Fortress)**，并以
+`ign gazebo --force-version 6` 显式钉死版本：`gz_ros2_control` 不为 Gazebo Sim 7 (Garden)
+导出插件，用 v7 运行会报 `does not export any plugins`。同时装有 v6/v7 的机器上 `gz sim`
+默认走 v7，因此必须钉版本。
 
 ## 构建
 
