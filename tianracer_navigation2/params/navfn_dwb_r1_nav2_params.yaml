@@ -57,7 +57,6 @@
 # ── 为什么单独一份、不改原文件 ───────────────────────────────────
 #   基准赛道 tianracer_racetrack 有一条 0.98m 窄道，本就容易卡死；全局提速很可能让它更糟。
 #   故按赛道分档，而不是改通用档。
-#   用法：PLANNER=navfn_dwb_r1 WORLD=racetrack_1 bash tools/dwb_round_retry.sh <标签>
 #
 # 只改「速度上限」这一个概念（max_vel_x / max_speed_xy / smoother 的 max|min_velocity），
 # **不动加速度**。注意平滑器角速度上限**保持 2.5**（见上面的否证）。
@@ -306,8 +305,7 @@ controller_server:
       # 动因：StandardTrajectoryGenerator（默认）的轨迹长度 = sim_time × vx，固定 sim_time
       #   意味着**速度越快的候选轨迹越长**；而 GoalDist 打的是「轨迹末端到目标点的距离」，
       #   目标点由 forward_prune_distance 封顶在车前 2.0 m，而 L_max = 0.8 × 2.5 = 2.0 m，
-      #   两者恰好相等。这是结构性耦合，不是权重能改的（候选级反事实已证，
-      #   见 [[dwb-goaldist-source-and-untouched-levers]]）。
+      #   两者恰好相等。这是结构性耦合，不是权重能改的（候选级反事实已证）。
       #   LimitedAccelGenerator 换的正是「速度采样怎么生成」，本可直击这个结构。
       # 结果：**两种配置都失败，且不是调参能救的**（2026-09-16 实测）
       #   · 缺 `sim_period`（默认 -1.0）：车 1/9、跑 29.2m 后卡死；
@@ -357,7 +355,7 @@ controller_server:
       # 改善集中在西侧「梳齿蛇形」走廊（减速最密集处）：第 4 段 0.96→1.08（+12.5%）、
       # 第 7 段 1.00→1.03；其余段持平。减速段由 15 段/25.7s 降到 11 段/22.8s。
       #
-      # 依据（用 dwb_recorder 抓 DWB 每周期全部候选的得分后实测）：
+      # 依据（实测 DWB 每周期全部候选的得分）：
       #   精确公式 total = 0.30·BaseObstacle + 0.80·PathAlign + 0.80·PathDist
       #                        + 0.60·GoalDist   （6026 条合法轨迹最小二乘，残差 0）
       # 即 yaml 的 scale 0.3/32/32/24 对应的实际权重是 0.3/0.8/0.8/0.6——
@@ -467,7 +465,7 @@ global_costmap:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 10.0
         # ── 实验①（2026-09-15）：global 侧膨胀半径 0.3 -> 0.45 ──────────
-        # 依据（实测 /plan 的净距，见 [[racetrack1-apex-cut-wall-deadlock]]）：
+        # 依据（实测 /plan 的净距）：
         #   改动前全局路径在卡点弯离墙约 0.326 m（= 到 >=99 带中位 0.256 + 内切带 0.07），
         #   而 inflation_radius=0.3 的影响圈刚好**止步于它之外** ⇒ 路径点代价恒为 0，
         #   规划器没有任何动力再往外走。要把路径推出去，必须让影响圈越过它。

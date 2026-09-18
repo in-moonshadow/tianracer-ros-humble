@@ -23,7 +23,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-install(DIRECTORY launch params behavior_trees tools
+install(DIRECTORY launch params behavior_trees
 DESTINATION share/${PROJECT_NAME})
 
 # cmd_vel -> ackermann_cmd 转换（真机路径，按车型 wheelbase 算 δ=atan(L·ω/v)）

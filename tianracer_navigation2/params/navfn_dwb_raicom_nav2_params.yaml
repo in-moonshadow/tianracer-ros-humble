@@ -46,10 +46,8 @@
 #     让车一步不能动（撞 judge 的 10s 未移动判停），0.4 让它还能爬出来。已优化到位。
 # 残余问题：两处 chicane（(7,6) 与 (5~6,5~6) 一带有 0.1m 厚碎墙块）偶发卡顿，
 #   代价 ~15s 或 1/5 的过门超时。未试过的最后候选是 global_costmap 的
-#   inflation_radius 0.3->0.45，但机理未必同源（见 racetrack1-apex-cut-wall-deadlock：
-#   那里是"路径离墙 0.326m 而影响圈止步 0.3"，而 raicom 卡点处路径离墙 0.447m）。
+#   inflation_radius 0.3->0.45，但机理未必同源（racetrack_1 上是"路径离墙 0.326m 而影响圈止步 0.3"，而 raicom 卡点处路径离墙 0.447m）。
 #
-# 运行：WORLD=raicom bash tianracer_navigation2/tools/dwb_round_retry.sh <标签> 5
 # =============================================================================
 
 amcl:
@@ -345,7 +343,7 @@ controller_server:
       # 改善集中在西侧「梳齿蛇形」走廊（减速最密集处）：第 4 段 0.96→1.08（+12.5%）、
       # 第 7 段 1.00→1.03；其余段持平。减速段由 15 段/25.7s 降到 11 段/22.8s。
       #
-      # 依据（用 dwb_recorder 抓 DWB 每周期全部候选的得分后实测）：
+      # 依据（实测 DWB 每周期全部候选的得分）：
       #   精确公式 total = 0.30·BaseObstacle + 0.80·PathAlign + 0.80·PathDist
       #                        + 0.60·GoalDist   （6026 条合法轨迹最小二乘，残差 0）
       # 即 yaml 的 scale 0.3/32/32/24 对应的实际权重是 0.3/0.8/0.8/0.6——

@@ -84,12 +84,9 @@ ros2 launch tianracer_gazebo tianracer_race.launch.py
 ros2 launch tianracer_gazebo tianracer_on_racetrack.launch.py gui:=true world:=tianracer_racetrack.world
 ```
 
-或使用封装脚本（会**先清理上次残留的 Gazebo Sim 进程**——强烈建议，
-上一次的 `gz sim` 残留会破坏下一次启动）：
-
-```bash
-bash tianracer_gazebo/scripts/run_sim.sh gui:=true
-```
+> **启动前提示**：上一次运行残留的 `gz sim` 进程会破坏本次启动，请先清掉
+> （`pkill -9 -f "ign gazebo"`；进程名是 `ign gazebo`，`gz sim` 匹配不到）。
+> 清理**刻意不写进 launch**——它与 gz 启动并发，会误杀本次启动的服务端。
 
 ### 建图
 

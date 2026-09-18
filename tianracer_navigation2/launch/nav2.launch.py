@@ -28,7 +28,7 @@ from track_spawn import DEFAULT_TRACK, get_spawn  # noqa: E402
 DEFAULT_MAP = 'tianracer_racetrack'
 DEFAULT_PLANNER = 'navfn_dwb'
 # 注入后的 params 写到这里（固定名 + 覆盖写）：不用 mkstemp，避免每轮仿真残留一个
-# 随机命名的 /tmp 文件堆积（dwb_round.sh 会跑很多轮）。
+# 随机命名的 /tmp 文件堆积（反复启动会累积）。
 SPAWN_PARAMS_DIR = '/tmp/tianracer_nav2_params'
 
 # 恢复行为树：装在 tianracer_navigation2/behavior_trees/ 下的本车专用 BT。

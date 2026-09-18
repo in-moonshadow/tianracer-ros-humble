@@ -47,13 +47,6 @@
 #       kine2 的 27.41s 是余量仅 2.6s 的边缘成功，不具可复现性。
 #
 # 【手动调参 / 演示须知】
-#   · **一键跑一轮并出报告**（本文件里所有实测数据都是用它跑的）：
-#       bash tianracer_navigation2/tools/teb_round.sh <标签>
-#           # 起 gz+nav2+裁判 → 发 /start → 等赛程结束 → 事件计数 → 按显式 PID 清理
-#           # 输出在 /tmp/tebfinal/<标签>/（judge.log / nav2.log / samples.csv / params_loaded.txt）
-#       python3 tianracer_navigation2/tools/teb_analyze.py /tmp/tebfinal/<标签>   # 汇总报告
-#       python3 tianracer_navigation2/tools/teb_locate.py  /tmp/tebfinal/<标签>   # 卡点/零速位置分布
-#     启动器已内置下面的残留检查、/dev/shm 清理，以及就绪等待的 150 s 墙钟超时。
 #   A. 改速度上限必须**成对改三处**，否则会被平滑器夹回（本项目踩过）：
 #        FollowPath.max_vel_x
 #        + FollowPath.max_vel_theta（= max_vel_x × tan(0.6) / 0.26）

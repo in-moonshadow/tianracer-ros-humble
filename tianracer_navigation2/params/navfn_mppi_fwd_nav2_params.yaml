@@ -1,12 +1,11 @@
 # =============================================================================
 # MPPI 局部规划器参数（禁止倒车组）
 # =============================================================================
-# 本文件由 tools/gen_mppi_params.py 从 navfn_dwb_nav2_params.yaml 生成：
+# 本文件以 navfn_dwb_nav2_params.yaml 为基座派生生成：
 #   **除 controller_server.FollowPath 段外，其余与 DWB 文件逐字节相同**
 #   —— velocity_smoother / costmap（robot_radius 0.07、local 6x6）、AMCL、
 #      planner_server（NavFn）、各 use_sim_time 等公共段原样保留。
 # 目的：让「DWB vs MPPI」的对比只差局部规划器本身，不掺其他配置差异。
-#   重新生成：python3 tianracer_navigation2/tools/gen_mppi_params.py
 #
 # 运行：ros2 launch tianracer_navigation2 nav2.launch.py use_planner=navfn_mppi_fwd
 #

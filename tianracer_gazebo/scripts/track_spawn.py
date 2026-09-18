@@ -30,7 +30,7 @@ DEFAULT_TRACK = 'tianracer_racetrack'
 DEFAULT_SPAWN = (0.0, 0.0, 0.1, 1.54)
 
 # key 用【裸赛道名】（不带 .world），与 judge_system.py 的 world 参数、
-# dwb_round.sh 的 $WORLD 同形；get_spawn 也接受带 .world 的形态。
+# 与各赛道命名同形；get_spawn 也接受带 .world 的形态。
 # 位姿 = (x, y, z, yaw)，单位 m / rad，坐标系为 gz 世界系（= map 系）。
 TRACK_SPAWNS = {
     # 无 mesh 地板（ground_plane 在 z=0）。内嵌 start_plane 发车线

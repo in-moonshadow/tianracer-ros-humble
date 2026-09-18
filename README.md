@@ -89,12 +89,10 @@ The race is started from the judge scoreboard window once everything is up.
 ros2 launch tianracer_gazebo tianracer_on_racetrack.launch.py gui:=true world:=tianracer_racetrack.world
 ```
 
-Or use the wrapper script, which cleans up leftover Gazebo Sim processes first
-(strongly recommended — a stale `gz sim` from a previous run will break the next one):
-
-```bash
-bash tianracer_gazebo/scripts/run_sim.sh gui:=true
-```
+> **Before launching:** a leftover `gz sim` process from a previous run will break the
+> next start — kill it first (`pkill -9 -f "ign gazebo"`; the process name is
+> `ign gazebo`, not `gz sim`). Cleanup is deliberately **not** done inside the launch
+> file: it would race with, and kill, the very server the launch is starting.
 
 ### Mapping
 

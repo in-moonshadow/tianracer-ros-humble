@@ -38,8 +38,4 @@ install(DIRECTORY urdf config launch worlds maps rviz waypoint_race
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(FILES scripts/gz_cleanup.sh scripts/run_sim.sh
-  DESTINATION share/${PROJECT_NAME}/scripts
-)
-
 ament_package()

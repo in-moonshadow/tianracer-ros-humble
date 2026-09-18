@@ -52,7 +52,7 @@ def generate_launch_description():
         return [ExecuteProcess(cmd=['bash', '-c', ' '.join(cmd)], output='screen')]
 
     # 让 gz-sim SystemLoader 能找到 gz_ros2_control 与 odometry 系统插件。
-    # 从环境动态推导（不写死发行版路径）：优先取 GZ_SIM_SYSTEM_PLUGIN_PATH（run_sim.sh 已设），
+    # 从环境动态推导（不写死发行版路径）：优先取 GZ_SIM_SYSTEM_PLUGIN_PATH（若外部已设），
     # 否则用 ros2 pkg prefix + pkg-config 拼，最后回退 Humble 默认位置。
     def _default_gz_plugin_path():
         if os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH'):
@@ -89,7 +89,7 @@ def generate_launch_description():
     def _gz_resource_path():
         pkg_share = get_package_share_directory('tianracer_gazebo')
         paths = [os.path.join(pkg_share, 'worlds')]
-        # 已存在的环境值一并保留（run_sim.sh 可能已设）
+        # 已存在的环境值一并保留（外部可能已设）
         for var in ('GZ_SIM_RESOURCE_PATH', 'IGN_GAZEBO_RESOURCE_PATH'):
             for p in os.environ.get(var, '').split(os.pathsep):
                 if p and p not in paths:
@@ -141,7 +141,7 @@ def generate_launch_description():
                  '--req', req],
             output='screen')
 
-        # URDF 若已由 run_sim.sh 与 gz 启动并行预生成（prebuilt_urdf:=true），
+        # URDF 若已与 gz 启动并行预生成（prebuilt_urdf:=true），
         # 直接 create，省掉 xacro 串行等待（实测约 0.49s）。
         if context.launch_configurations.get('prebuilt_urdf', 'false') == 'true':
             return [create_cmd]
@@ -152,7 +152,7 @@ def generate_launch_description():
                 RegisterEventHandler(OnProcessExit(target_action=urdf_cmd,
                                                    on_exit=[create_cmd]))]
 
-    # 等 gz 的 create 服务就绪后再 spawn。run_sim.sh 走 start_gz:=false 时已先等过一次，
+    # 等 gz 的 create 服务就绪后再 spawn。start_gz:=false（gz 已由外部启动）时已先等过一次，
     # 这里再兜住直接以 start_gz:=true 启动的路径。gz CLI 单次调用约 2.4s（传输握手固定成本），
     # 因此循环内不再额外 sleep。
     def wait_and_spawn(context):
@@ -167,7 +167,7 @@ def generate_launch_description():
                 pass
         return spawn_robot(context)
 
-    # start_gz:=false 时 gz 由 run_sim.sh 预先启动并已确认 create 服务就绪，无需再探测
+    # start_gz:=false 时 gz 已由外部预先启动并确认 create 服务就绪，无需再探测
     #（gz CLI 单次握手约 2.4s，重复探测纯属浪费）；只有 launch 自己启 gz 时才需等待。
     def spawn_when_ready(context):
         if context.launch_configurations.get('start_gz', 'true') == 'false':
@@ -190,7 +190,7 @@ def generate_launch_description():
         DeclareLaunchArgument('namespace', default_value=default_namespace,
                               description='Top-level namespace'),
         DeclareLaunchArgument('start_gz', default_value='true',
-                              description='Whether to start the gz-sim server (set false if run_sim.sh already started it)'),
+                              description='Whether to start the gz-sim server (set false if it was already started externally)'),
         DeclareLaunchArgument('world', default_value='tianracer_racetrack.world',
                               description='World file name in worlds/ (e.g. tianracer_racetrack.world)'),
         DeclareLaunchArgument('gui', default_value='true',
@@ -198,9 +198,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true',
                               description='Use simulation clock'),
         DeclareLaunchArgument('prebuilt_urdf', default_value='false',
-                              description='URDF 已由 run_sim.sh 预生成（跳过 launch 内 xacro）'),
+                              description='URDF 已预生成（跳过 launch 内 xacro）'),
 
-        # gz-sim 服务端。推荐用 run_sim.sh（start_gz:=false）由脚本先直接启动 gz——
+        # gz-sim 服务端。可设 start_gz:=false 由外部先直接启动 gz——
         # 实测 launch 内启动的 gz server 偶发 100% CPU 空转、create 服务无响应。
         OpaqueFunction(
             function=start_gz_sim,
@@ -223,7 +223,7 @@ def generate_launch_description():
         # 关键：必须用 gz service create + sdf_filename 文件方式生成，传感器才能正确挂载
         #（ros_gz_sim create 节点用字符串生成模型时传感器不更新，实测无数据）。
         # 原为 period=20.0 固定死等 gz 就绪；现改为就绪即 spawn。
-        # start_gz:=false（run_sim.sh 路径）下直接 spawn，不再重复探测。
+        # start_gz:=false（gz 已由外部启动）下直接 spawn，不再重复探测。
         TimerAction(
             period=0.1,
             actions=[OpaqueFunction(function=spawn_when_ready)],
