@@ -1,0 +1,27 @@
+# 车辆几何参数：唯一真理源。
+#
+# 各 launch（tianracer_bringup / tianracer_navigation2 / tianracer_teleop）与
+# 仿真脚本（tianracer_gazebo/scripts/transform.py、servo_commands.py）的默认值
+# 均以此文件为准，不要再在别处写字面量。
+#
+# wheelbase 的实测依据：tianracer_description/urdf/tianracer_compact.urdf
+#   left/right_steering_hinge_joint 位于 x=+0.261（前轮）
+#   left/right_rear_wheel_joint 的 parent 是 base_link 且 origin xyz=0（后轮在原点）
+#   ⇒ 轴距 = 0.261 m
+#
+# 注意：仓库中只有 compact 一份 URDF（xacro 无车型分支，description launch 硬编码
+# tianracer_compact.urdf.xacro），故 standard / fullsize 的数值**没有 URDF 依据**，
+# 是从 ROS 1 的 tianracer_teb_nav.launch 继承的近似值，待有对应模型后核实。
+vehicle:
+  compact:
+    wheelbase: 0.261
+    track_width: 0.13      # 轮距，取自 URDF 轮子 y 偏移（±0.065908 左右两侧）
+    wheel_radius: 0.032    # 轮半径，取自 URDF 轮子几何
+  standard:
+    wheelbase: 0.33        # ⚠️ 无 URDF 依据（ROS 1 继承值）
+    track_width: null
+    wheel_radius: null
+  fullsize:
+    wheelbase: 0.6         # ⚠️ 无 URDF 依据（ROS 1 继承值）
+    track_width: null
+    wheel_radius: null

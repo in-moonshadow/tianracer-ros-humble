@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>tianracer_description</name>
+  <version>1.0.0</version>
+  <description>The tianracer_description package</description>
+
+  <maintainer email="tianbot@todo.todo">tianbot</maintainer>
+
+  <license>GPLv3</license>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>gazebo_ros</depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

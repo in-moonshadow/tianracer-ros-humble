@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>tianracer_rviz</name>
+  <version>1.0.0</version>
+  <description>The tianracer_rviz package</description>
+  <maintainer email="tianbot@todo.todo">tianbot</maintainer>
+  <license>GPLv3</license>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

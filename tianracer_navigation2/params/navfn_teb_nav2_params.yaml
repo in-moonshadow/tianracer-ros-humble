@@ -1,0 +1,641 @@
+# =============================================================================
+# TEB 局部规划器参数（tianracer-humble / ROS2 Humble）
+# =============================================================================
+# 用途：研究 / 演示 / **手动调参**。默认规划器仍是 DWB（`nav2.launch.py` 的 use_planner
+#       默认值 `navfn_dwb`）。切到本文件：
+#         ros2 launch tianracer_navigation2 nav2.launch.py use_planner:=navfn_teb
+#
+# 【当前状态（2026-09-13 实测，就是下面这组参数）】
+#   最好一轮是 kine 轮：score 15.000 | door_points 15 | **过 3/9 门** |
+#   里程 72.20 m | 用时 93.02 s；三个门段速 0.82 / 0.88 / 0.71 m/s，
+#   段用时 27.41 / 18.01 / 17.60 s（**首门余量仅 2.6 s**）。
+#   对照 DWB：三圈 9/9、109.58 m、113.61 s（均速 0.96 m/s）。
+#   → TEB 现约为 DWB 的 74~92% 段速：最好轮能过门，但还不能稳定完赛。
+#
+# ⚠️ **单轮成绩不可当结论（轮间方差极大）**：同配置 kine1 0/9（21.63 m，首门差约 1 m
+#   卡在 30 s 窗口外）、kine2 3/9（72.20 m）。2026-09-13 复查 4 轮（tebpost1 / tebfwd1b /
+#   tebfwd2 / tebfwd3）**全部 0/9**，/start 后 30 s 里程 16.00~18.24 m。
+#   故当前结论：TEB 在本链路的首门通过率低、不具备稳定竞速能力；**默认规划器保持 DWB**。
+#   若要继续推进 TEB，先解决首门（它是 30 s 判据下最紧的一环），再谈全程。
+#
+# 【四个根因（均已修，别改回去）】
+#   注：这四条修好的是"零速死锁"（消灭了 not feasible 暴刷与 vx≈0 卡死），
+#   但**没有解决首门通过率**——见上面的轮间方差说明。
+#   1. 移植时漏抄 ROS1 文件 "# **** Carlike robot parameters ****" 块里的
+#      min_turning_radius / wheelbase / cmd_angle_instead_rotvel → 吃到 TEB 默认
+#      0 / 1.0 / false = **当差速车跑**（optimal_planner.cpp:357-360 走
+#      AddEdgesKinematicsDiffDrive）。现设 0.38 / 0.26 / False。
+#   2. weight_kinematics_turning_radius 曾为 1.0（该权重合理区间 1~100 的最下端）→
+#      carlike 约束形同不存在：实测 TEB 输出 vx≈0.08 配 |wz|≈1.0，隐含转弯半径
+#      R≈0.08 m ≪ 物理极限 0.38 m 的"原地捻转"。现为 100。
+#   3. footprint_model 曾是 polygon 0.36×0.20（内切 0.10）→ 优化器贴墙 → 撞上硬校验的
+#      内切带 → `trajectory is not feasible` 85~118 次 → 零速死锁。现为 circular r=0.2。
+#   4. min_obstacle_dist 0.27 + circular 0.2 ⇒ 要求车心离墙 0.47 m > 走廊半宽 0.48 m
+#      → 优化器全程"永久违反"，自由度被障碍项吃光 → 宁可慢。现为 0.18（硬校验底线 0.14）。
+#
+# 【各配置组实测（每格两轮；里程单位 m）】
+#   配置组                       静止占比      前级vx p50     里程           not feasible  过门
+#   carlike 关 (r1/r2)          43.5/52.2%   0.082/0.041   10.09/7.31     22/3          0/9
+#   + carlike 开 (carlike1/2)   45.2/63.2%   0.324/0.000   12.34/8.16     85/118        0/9
+#   + 全量还原   (full1/2)      14.4/15.0%   0.223/0.132   12.86/11.66    0/0           0/9
+#   + 提速权重   (fast1/2)      13.1/31.6%   0.116/0.076   11.77/11.55    1/1           0/9  ← 无效，已撤回
+#   + 约束/余量  (kine1/2)      **1.5/0.8%** **0.777/0.744** 21.63/**72.20** 2/2         **3/9** ← 最好成绩
+#   + 上限 2.0   (v2a)          —            —             18.95          0             0/9  ← 未见改善，已回退
+#   + 禁倒车 100 (tebfwd1b/2)   1.5/1.4%     0.640/0.633   18.24/16.00    0/0           0/9  ← 倒车25%→15%但未过门
+#   + 禁倒车 100 (tebpost1)     1.5%         0.439         17.40          0             0/9
+#     ↳ 2026-09-13 复查 4 轮全部 0/9（30s 里程 16.00~18.24m），首门成为硬瓶颈；
+#       kine2 的 27.41s 是余量仅 2.6s 的边缘成功，不具可复现性。
+#
+# 【手动调参 / 演示须知】
+#   · **一键跑一轮并出报告**（本文件里所有实测数据都是用它跑的）：
+#       bash tianracer_navigation2/tools/teb_round.sh <标签>
+#           # 起 gz+nav2+裁判 → 发 /start → 等赛程结束 → 事件计数 → 按显式 PID 清理
+#           # 输出在 /tmp/tebfinal/<标签>/（judge.log / nav2.log / samples.csv / params_loaded.txt）
+#       python3 tianracer_navigation2/tools/teb_analyze.py /tmp/tebfinal/<标签>   # 汇总报告
+#       python3 tianracer_navigation2/tools/teb_locate.py  /tmp/tebfinal/<标签>   # 卡点/零速位置分布
+#     启动器已内置下面的残留检查、/dev/shm 清理，以及就绪等待的 150 s 墙钟超时。
+#   A. 改速度上限必须**成对改三处**，否则会被平滑器夹回（本项目踩过）：
+#        FollowPath.max_vel_x
+#        + FollowPath.max_vel_theta（= max_vel_x × tan(0.6) / 0.26）
+#        + 文件末尾 velocity_smoother 的 max_velocity / min_velocity。
+#   B. 每轮启动前清理残留（务必执行）：
+#      · 进程：`ps -eo pid,cmd | grep -E "ign gazebo|nav2_|ros2 launch"` 后按**显式 PID** kill。
+#        **不要用 `pkill -f`**：它会自匹配，本项目已因此误杀过自己的 shell 多次。
+#      · 共享内存：`/dev/shm/fastrtps_*` 会跨轮累积（收尾用 kill -KILL 时进程不会 unlink 自己
+#        的段），属该清理的卫生问题；清理办法（只删无持有者的段，保留 ros2 daemon 的）：
+#          held=$(lsof /dev/shm/fastrtps_* 2>/dev/null | awk 'NR>1{print $NF}' | sort -u)
+#          for f in /dev/shm/fastrtps_*; do case "$held" in *"$f"*) ;; *) rm -f "$f";; esac; done
+#        ⚠️ 但**它不是卡死的充分条件**：2026-09-13 在 /dev/shm 仅有 10 段（全部由 ros2 daemon
+#        持有、无孤儿）时仍复现了卡死，故别把"清理干净就不会卡"当成结论。
+#   C. Nav2 bringup 偶发 DDS 卡死（本项目一晚上撞到 4 次，**与 /dev/shm 是否干净无关**）：
+#      特征 = `lifecycle_manager_navigation` 停在 configure、`bt_navigator` 永不 active，
+#      日志出现 `failed to send response to /bt_navigator/get_state (timeout)`；
+#      此时 gz/控制器/lifecycle_manager_localization 都正常，**不是参数问题**。
+#      实用对策：**墙钟超时判死 + 直接重跑**（本工具链 150 s 判死，重跑通常就过）。
+#      若频繁复现，可试 `ros2 daemon stop`（daemon 会持有 7 个 `fastrtps_port*` 段，
+#      怀疑与发现端口分配有关；此假设尚未验证）。
+#   D. 就绪判据（只 grep `lifecycle_manager_localization` 的 "Managed nodes are active" 会误判，
+#      它会先于 navigation 段打印）：须 **≥2 次**该行 + `ros2 lifecycle get /bt_navigator` = active
+#      + `ros2 topic info /navigate_to_pose/_action/status` 发布者 **≥1**。
+#      等待必须带**墙钟超时**（如 150 s）：卡死时按轮次计会空转十几分钟，且旧逻辑会带着一个
+#      死掉的 bt_navigator 硬跑一轮（必然废数据）。
+#
+# 【已知未解 / 下一步候选】
+#   · 首门 30 s 判据是当前瓶颈：kine2 首门 22.55 m / 27.41 s 通过，余量仅 2.6 s；同配置两轮
+#     里程可差 21.63 vs 72.20 m —— **单轮成绩不能当结论，至少跑 2~4 轮**。
+#   · TEB 没有"最小前进速度"参数（DWB 靠 `min_vel_x: 0.4` 硬性禁止爬行），这是它低速倾向的来源。
+#   · TEB 的招牌能力目前都关着：`enable_homotopy_class_planning: False`（ROS1 竞速也是 False）。
+#   · `controller_frequency` 仍是 5.0（DWB 用 20.0）：1.5 m/s 下每周期走 0.3 m；若继续抬高速度
+#     上限，建议同步提到 10 Hz。
+#   · 2.0 m/s 上限**未定论**（1 轮有效数据 18.95 m 未见改善；另两轮撞 DDS 卡死被跳过）。
+#
+# 【已实测排除的解释（别再走）】
+#   · 轮子打滑：位置差分/odom 速度比 p50 = 0.945（仅 5~8% 损失）。
+#   · TF/scan 滞后：实测仅 0.025~0.032 s。
+#   · 平滑器削角速度指令：对齐到物理值 3.95 后问题形态不变。
+#   · "TEB 算法本身弱 / 能力上限只有 DWB 的 60~68%"：那是配置全错时的假象，已推翻。
+#
+# 【ROS1 原版三套 TEB 配置的区别（本文件的对齐目标是第 1 套）】
+#   1. 竞速：`tianracer_navigation/param/teb_carlike/{compact,standard,fullsize}_*.yaml`
+#   2. Gazebo 演示（5.115 m/s 开阔场）：`tianracer_gazebo/config/teb/teb_local_planner_params.yaml`
+#   3. 比赛 disparity-extender 变体：`tianracer_competition/launch/param/teb_local_planner_params.yaml`
+# =============================================================================
+
+amcl:
+  ros__parameters:
+    use_sim_time: true                # 使用仿真时钟（/clock），仿真下必须 true
+    alpha1: 0.2                       # 里程计噪声：旋转→旋转 分量
+    alpha2: 0.2                       # 里程计噪声：旋转→平移 分量
+    alpha3: 0.8                       # 里程计噪声：平移→平移 分量
+    alpha4: 0.2                       # 里程计噪声：平移→旋转 分量
+    alpha5: 0.2                       # 里程计噪声：仅全向模型使用的附加项
+    base_frame_id: <robot_namespace>/base_footprint  # 机器人基座坐标系
+    beam_skip_distance: 0.5           # 判定"该束为动态障碍/被遮挡"的距离阈值(m)
+    beam_skip_error_threshold: 1.0    # 允许跳束的比例上限，超过则回退为不跳束
+    beam_skip_threshold: 0.3          # 单束被判为需跳过的比例阈值
+    do_beamskip: false                # 是否启用跳束（用于动态障碍；本仿真关闭）
+    global_frame_id: <robot_namespace>/map           # 全局/地图坐标系
+    lambda_short: 0.1                 # z_short 指数模型的衰减率
+    laser_likelihood_max_dist: 2.0    # likelihood_field 模型预计算似然场的最大距离(m)
+    laser_max_range: 30.0             # 激光最大有效距离(m)，超过视为无效
+    laser_min_range: -1.0             # 激光最小有效距离(m)，-1=采用雷达自身报告值
+    laser_model_type: "likelihood_field"  # 观测模型：likelihood_field = 概率场模型
+    max_beams: 50                     # 每帧最多使用多少束激光（越多越准越慢）
+    max_particles: 5000               # 粒子数上限
+    min_particles: 1000               # 粒子数下限
+    odom_frame_id: <robot_namespace>/odom            # 里程计坐标系
+    pf_err: 0.05                      # 粒子滤波误差容忍（KLD 采样终止条件）
+    pf_z: 0.99                        # KLD 采样的置信度 z
+    recovery_alpha_fast: 0.0          # 快速随机重定位的指数率（0=关闭）
+    recovery_alpha_slow: 0.0          # 慢速随机粒子重注入的指数率（0=关闭）
+    resample_interval: 1              # 每多少次滤波更新做一次重采样
+    robot_model_type: "nav2_amcl::OmniMotionModel"   # 运动模型：全向（差分车应改 DiffMotionModel）
+    save_pose_rate: 0.5               # 将估计位姿写回参数服务器的频率(Hz)
+    sigma_hit: 0.2                    # z_hit 分量（命中）的标准差(m)
+    tf_broadcast: true                # 是否广播 map→odom 变换（false 时需要别处提供）
+    transform_tolerance: 0.3          # 允许的 TF 变换延迟(s)
+    update_min_a: 0.1                 # 旋转超过该值才触发一次滤波更新(rad)
+    update_min_d: 0.1                 # 平移超过该值才触发一次滤波更新(m)
+    z_hit: 0.8                        # 观测模型混合权重：命中
+    z_max: 0.05                       # 观测模型混合权重：最大距离
+    z_rand: 0.05                      # 观测模型混合权重：随机噪声
+    z_short: 0.05                     # 观测模型混合权重：短距（意外障碍）
+    scan_topic: scan                  # 激光话题（相对命名空间）
+    map_topic: map                    # 地图话题
+    # 启动即自动定位：AMCL 在 configure 阶段直接采用该位姿，无需再发 /initialpose 话题。
+    # 注意：出生位姿由 nav2.launch.py 按 world:= 从 track_spawn.py 注入，此处数值仅作未注入时的回退。
+    set_initial_pose: true            # 启动即采用下面的 initial_pose 作为初始定位
+    initial_pose:                     # 初始位姿（与仿真出生点一致，省去手动发 /initialpose）
+      x: 0.0                          #   初始 x(m)
+      y: 0.0                          #   初始 y(m)
+      z: 0.0                          #   初始 z(m)
+      yaw: 1.54                       #   初始朝向(rad)，1.54≈90°=朝 +y（必须保留，见文件头/记忆）
+
+amcl_map_client:
+  ros__parameters:
+    use_sim_time: true                # 使用仿真时钟（Nav2 自动生成的辅助节点）
+
+amcl_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true                # 使用仿真时钟（Nav2 自动生成的辅助节点）
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true                # 使用仿真时钟
+    global_frame: <robot_namespace>/map              # 行为树里的"全局"坐标系
+    robot_base_frame: <robot_namespace>/base_link     # 机器人基座坐标系
+    odom_topic: odom                  # 里程计话题（行为树据此判断速度/是否卡住）
+    bt_loop_duration: 10              # 行为树 tick 周期(ms)
+    default_server_timeout: 20        # 调用 action server 的默认超时(s)
+    enable_groot_monitoring: True     # 开放 Groot2 在线监视行为树（调试用）
+    groot_zmq_publisher_port: 1666    # Groot 监视的 ZMQ 发布端口
+    groot_zmq_server_port: 1667       # Groot 监视的 ZMQ 服务端口
+    # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
+    # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
+    # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
+    # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
+    plugin_lib_names:                 # 行为树节点插件清单（下面每项是一个插件库名，非调参项；
+                                      # 缺哪个，对应 BT XML 里就会报"未知节点"）
+    - nav2_compute_path_to_pose_action_bt_node
+    - nav2_compute_path_through_poses_action_bt_node
+    - nav2_follow_path_action_bt_node
+    - nav2_back_up_action_bt_node
+    - nav2_spin_action_bt_node
+    - nav2_wait_action_bt_node
+    - nav2_clear_costmap_service_bt_node
+    - nav2_is_stuck_condition_bt_node
+    - nav2_goal_reached_condition_bt_node
+    - nav2_goal_updated_condition_bt_node
+    - nav2_initial_pose_received_condition_bt_node
+    - nav2_reinitialize_global_localization_service_bt_node
+    - nav2_rate_controller_bt_node
+    - nav2_distance_controller_bt_node
+    - nav2_speed_controller_bt_node
+    - nav2_truncate_path_action_bt_node
+    - nav2_goal_updater_node_bt_node
+    - nav2_recovery_node_bt_node
+    - nav2_pipeline_sequence_bt_node
+    - nav2_round_robin_node_bt_node
+    - nav2_transform_available_condition_bt_node
+    - nav2_time_expired_condition_bt_node
+    - nav2_distance_traveled_condition_bt_node
+    - nav2_single_trigger_bt_node
+    - nav2_goal_updated_controller_bt_node
+    - nav2_is_battery_low_condition_bt_node
+    - nav2_navigate_through_poses_action_bt_node
+    - nav2_navigate_to_pose_action_bt_node
+    - nav2_remove_passed_goals_action_bt_node
+    - nav2_planner_selector_bt_node
+    - nav2_controller_selector_bt_node
+    - nav2_goal_checker_selector_bt_node
+
+bt_navigator_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true                # 使用仿真时钟
+    controller_frequency: 5.0         # 局部规划/控制频率(Hz)。TEB 很重，5 Hz 是本仿真可承受值；
+                                      # 想跑更快可试着提到 10 Hz（DWB 用的是 20 Hz）
+    min_x_velocity_threshold: 0.001   # 低于该线速度视为 0（用于 odom 判停）
+    min_y_velocity_threshold: 0.5     # 低于该侧向速度视为 0
+    min_theta_velocity_threshold: 0.001  # 低于该角速度视为 0
+    # failure_tolerance 0.3 -> 3.0：对齐原版 move_base 的 controller_patience: 3.0
+    # （tianracer_gazebo/config/teb/move_base_params.yaml）。Nav2 的语义是「控制周期
+    # 超出期望周期多久就中止目标」，0.3 意味着单周期超过 0.2+0.3=0.5s 就 abort；
+    # TEB 是 CPU 重的单线程优化器（enable_multithreading: False），实测一轮 22s 内
+    # 报了 12 次 "Controller patience exceeded" 并反复 abort 目标，是车辆停摆的直接原因之一。
+    failure_tolerance: 3.0            # 控制周期超时容忍(s)，超时即中止当前目标
+    progress_checker_plugin: "progress_checker"          # 进度检查插件名（下面那段）
+    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"  # 启用哪个到点判定插件
+    controller_plugins: ["FollowPath"]                   # 局部规划插件清单（下面 FollowPath 段）
+
+    # Progress checker parameters
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"   # 插件类：简单进度检查器（规定时限内必须移动够距离）
+      required_movement_radius: 0.5   # 在下面时限内至少移动该距离(m)，否则判"无进展"
+      movement_time_allowance: 10.0   # 判定无进展的时限(s)（裁判的 10s 未移动判罚同源）
+    # Goal checker parameters
+    # yaw_goal_tolerance 由 0.25 放宽到 0.6：阿克曼车难以在目标点把朝向对准到 0.25rad。
+    # 路点推进实际由主程序的 2.15m 距离阈值决定，不依赖该朝向容差。
+    precise_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"       # 插件类（当前未启用）
+      xy_goal_tolerance: 0.25         # 位置到点容差(m)
+      yaw_goal_tolerance: 0.6         # 朝向到点容差(rad)
+      stateful: True                  # 到达后保持"已完成"状态，避免抖动反复触发
+    general_goal_checker:             # 实际启用的到点判定
+      stateful: True                  # 到达后保持"已完成"状态
+      plugin: "nav2_controller::SimpleGoalChecker"       # 插件类：简单到点判定器（xy/yaw 双容差）
+      xy_goal_tolerance: 0.25         # 位置到点容差(m)
+      yaw_goal_tolerance: 0.6         # 朝向到点容差(rad)
+    # TEB 局部规划器参数。**对齐目标 = ROS1 竞速用的那一份**
+    #   tianracer_navigation/param/teb_carlike/compact_teb_local_planner_params.yaml
+    # （真车赛跑时 f1tenth_racer 走 move_base，局部规划器就是它）。
+    # 仓库里另有两份 TEB 参数，来源与取值都不同，**别混用**：
+    #   · tianracer_gazebo/config/teb/teb_local_planner_params.yaml —— Gazebo 演示配置
+    #     （max_vel_x 5.115、min_obstacle_dist 0.088、weight_obstacle:optimaltime = 5:10），
+    #     本文件此前误按这一份调参，是 TEB 长期跑不动的直接来源之一。
+    #   · tianracer_competition/launch/param/teb_local_planner_params.yaml —— 比赛变体。
+    # cmd_angle_instead_rotvel 必须为 False：真正在跑的 nav_sim 是
+    #   `tianracer_gazebo/scripts/transform.py`（tianracer_control.launch.py:48-51 以
+    #   executable=transform.py、name=nav_sim 启动），它做几何换算 δ = atan(L·ω/v) 并钳位
+    #   ±0.6，即 **angular.z 是偏航角速度**。（同名的 tianracer_competition/script/nav_sim.py
+    #   是把 angular.z 当舵角直传的另一份，不在仿真驱动路径上，勿据此设参——此处曾因此误设为 True。）
+
+    FollowPath:
+      plugin: "teb_local_planner::TebLocalPlannerROS"  # 插件类：TEB 局部规划器（本文件的主角）
+
+      # Trajectory
+      # teb_autosize 在 TEB 里是 double 类型（teb_config.h:79 `double teb_autosize`，
+      # 语义为 bool 但声明是 double）。ROS2 的 rcl 参数类型严格，写成 True 会在
+      # configure 阶段抛 "has invalid type" 并让 controller_server 直接 FATAL，
+      # 故必须写数字 1.0（等价于原版 ROS1 的 True）。
+      teb_autosize: 1.0                 # 允许优化过程中改变轨迹的时域长度（bool 语义，但须写 1.0）
+      # 2026-09-13 全量还原 ROS1 竞速配置（tianracer_navigation/param/teb_carlike/compact）：
+      # dt_ref 0.4→0.3、dt_hysteresis 0.04→0.1、lookahead 2.0→3.0、
+      # allow_init_with_backwards_motion False→True（最后一项会让初始轨迹只朝前初始化，
+      # 在死角位姿下连"先倒一把"都无从考虑）。
+      dt_ref: 0.3                        # 期望时间分辨率(s)：越小轨迹点越密、优化越慢
+      dt_hysteresis: 0.1                 # dt_ref 自适应回差，惯例取 dt_ref 的约 10%
+      global_plan_overwrite_orientation: True   # 允许 TEB 改写全局路径点的朝向
+      max_global_plan_lookahead_dist: 3.0       # 只取全局路径前 3 m 参与优化（越大越远视、越慢）
+      feasibility_check_no_poses: 2      # ★硬校验只查前 2 个位姿（ROS1 竞速也是 2）；-1=查全部
+      allow_init_with_backwards_motion: True    # 允许初始轨迹含倒车（卡在死角位姿时有用）
+      global_plan_viapoint_sep: -1.0     # -1=自动取全局路径上所有点作为 viapoint
+      global_plan_prune_distance: 1.0    # 丢弃车后 1 m 内的全局路径点
+      exact_arc_length: False            # 用直线近似弧长（保守）
+      publish_feedback: False            # 不发布 TEB 内部反馈（rviz 调试时可开）
+
+      # Robot
+      # 1.5 = **实测最佳值**：kine 轮（其余参数与现在相同）在此值下过 3 门、跑 72.20m、
+      # 段速 0.71~0.88 m/s。曾试 2.0：仅 1 轮有效数据（18.95m、0 门；另两轮撞 DDS 卡死被跳过），
+      # **未见改善**，故回退。不要一次抬太高：本项目实测 DWB 在 2.5 m/s 会在弯中卡死。
+      # ⚠️ 改本项必须成对改三处：本项 + max_vel_theta（= 本项×tan(0.6)/0.26）
+      #    + velocity_smoother 的 max_velocity/min_velocity（文件末尾），否则被平滑器夹回。
+      max_vel_x: 1.5                    # 前进速度上限(m/s)。★改它必须同时改 max_vel_theta 与 velocity_smoother
+      # ✅ 定稿 1.0（2026-09-13，tebfwd 轮实测）：ROS1 竞速值，**不要压**。
+      # 曾试压到 0.2（配套 weight_kinematics_forward_drive=100 想彻底禁倒车），
+      # 结果**负收益**：倒车样本比例 14% → 42%（频率×3），倒车幅度虽被削到 -0.2，
+      # 但 vx 均值从 0.633 掉回 0.431，30s 里程 18.24 → 16.15m，仍卡首门。
+      # 机制：TEB 在窄走廊里用倒车解阿克曼构型是**必要手段**——硬剥夺后优化器只能
+      # 用"频繁小幅倒车"替代"偶尔大幅倒车"，净效果更慢。倒车是症状不是病因。
+      # （另注：取 0 会让速度不等式下界退化并每轮刷
+      #  "max_vel_x_backwards <= penalty_epsilon ... Undefined behavior" 警告。）
+      max_vel_x_backwards: 1.0          # 倒车速度上限(m/s)；实测压到 0.2 反而更慢，保持 ROS1 值
+      # **不是自由参数**：必须等于 v·tan(δmax)/L —— δmax=0.6 是 transform.py 的实际舵角钳位
+      # （URDF 写的 ±1 不生效），L=wheelbase=0.26。max_vel_x=1.5 时 = 3.95 rad/s。
+      # 原版写 10.5 是因为 ROS1 那份 transform.py 把 angular.z 直接当舵角传；本移植链的
+      # angular.z 是**偏航角速度**，10.5 rad/s 物理上不可能。
+      # 实测（2026-09-12 双通道采样）：未对齐时 TEB 规划到 max 5.664、p90 3.411，而平滑器
+      # 只放 2.5 → 35.6% 的角速度样本被削、平均削 1.662 rad/s，车按比计划更宽的弧线走。
+      # ⚠️ 与 max_vel_x、velocity_smoother 的角速度通道成对修改。
+      max_vel_theta: 3.95               # 偏航角速度上限(rad/s)。★不是自由参数：须 = max_vel_x·tan(0.6)/0.26
+      # ROS1 竞速取 1.5/1.5（演示配置取 5.115/10.5，那是 5.115 m/s 高速演示的加速度值）。
+      acc_lim_x: 1.5                    # 线加速度上限(m/s²)
+      acc_lim_theta: 1.5                # 角加速度上限(rad/s²)
+
+      # 阿克曼约束（2026-09-13 启用 carlike，单变量实验）：
+      # 此前一直是 0（= 差速车模型）。根因是**移植时漏抄**了 ROS1 文件里
+      # "# **** Carlike robot parameters ****" 注释块内的 min_turning_radius / wheelbase /
+      # cmd_angle_instead_rotvel 三键，于是吃到 TEB 默认值 0 / 1.0 / false。
+      # 后果：optimal_planner.cpp:357-360 走 AddEdgesKinematicsDiffDrive()（差速车分支），
+      # TEB 可以规划「原地打方向」的解——实测症状正是 vx p50 0.04~0.08、|wz| p50 2.5~3.0，
+      # 零速样本与 "trajectory is not feasible" 几乎 1:1。而本链路 transform.py 做
+      # δ=atan(L·ω/v) 并钳位 ±0.6，v≈0 时该指令只会让舵机打满、车实际不转 → 卡死弯角。
+      # 0.38 = 0.26/tan(0.6)：0.6 才是有效舵角限位（transform.py 的钳位，非 URDF 的 ±1），
+      # 即物理上 ω ≤ v/0.38，与 transform.py 的实际钳位一致。
+      # ⚠️ 必须与 weight_kinematics_turning_radius 同步改（见该项注释）：R=0 时该权重惰性，
+      # R>0 会凭空激活。第 4 轮只把 R 改成 0.167 而权重仍留 1800，实测反而更差
+      # （车只走 6.10m，不改 R 时是 12.30m）。
+      min_turning_radius: 0.38          # 最小转弯半径(m)。★carlike 总开关：0 = 按差速车规划（可原地转）
+      wheelbase: 0.26                   # 轴距(m)。用于 δ=atan(L·ω/v) 与转弯半径换算，必须等于真实轴距
+      # angular.z 是偏航角速度（依据见文件上方 controller_server 处的说明），故置 False。
+      # 若置 True，TEB 会把输出角速度当舵角，而 transform.py 又会把该值当角速度再算一次
+      # δ=atan(L·ω/v)，等于二次换算，转向量完全错。
+      cmd_angle_instead_rotvel: False   # True 时把输出的角速度位当作舵角（本链路是偏航角速度，必须 False）
+
+      # 2026-09-13 全量还原：polygon(0.36×0.20，内切 0.10) → circular r=0.2。
+      # ROS1 竞速用的是 footprint_model: line(r=0.2, 0→0.3)，但 **ROS2 移植版的
+      # LineRobotFootprint 只接受 line_start/line_end、不接收 radius**（teb_config.cpp:330-360），
+      # 照抄会得到"零宽线段"车体。circular r=0.2 与 ROS1 的 line 同为 0.4 m 宽，
+      # 是移植基线当时采用的等价改写，故沿用。
+      # 实测关联：基线用 circular 0.2 时 `not feasible` 只有 22/3 次，换成内切半径 0.10 的
+      # 小多边形后升到 85/118 —— 优化器 footprint 越小越贴墙，越容易撞上硬校验的内切带。
+      # 注意：TEB 自己的 footprint_model 只影响**优化器**；硬校验用的是代价地图 footprint
+      # （robot_radius 0.07，teb_local_planner_ros.cpp:152），两者互不相干。
+      footprint_model:
+        type: "circular"                # 优化器按什么形状估算车体：point/circular/line/two_circles/polygon
+        radius: 0.2                     # circular 模型的半径(m)：越大越远离墙，但弯角余量越小
+
+
+      # GoalTolerance：ROS1 的 TEB 自带 xy/yaw_goal_tolerance，ROS2 的 TEB 已把目标
+      # 容差交给 Nav2 的 goal checker（见上方 general_goal_checker），故此处不设。
+      # ROS1 竞速取 False（演示配置取 True）：到点前须把速度降到 0。
+      free_goal_vel: False              # 是否允许带着速度到达目标（False = 到点前必须把速度降到 0）
+
+      # Obstacles
+      # 0.25 → 0.27（ROS1 竞速值）→ **0.18**：余量要求过严导致"永久违反"。
+      # `circular r=0.2` 的 footprint 边缘 + min_obstacle_dist 0.27 ⇒ 要求车心离墙 **0.47 m**，
+      # 而本赛道走廊半宽只有 ~0.48 m —— 优化器全程处于"无论怎么走都违反"的状态，自由度
+      # 全被障碍项吃掉，代价就是它宁可慢。放宽到 0.18 ⇒ 要求 0.38 m，落回走廊半宽以内。
+      # 底线依据：硬校验用的是**代价地图 footprint**（robot_radius 0.07，
+      # teb_local_planner_ros.cpp:152 `footprint_spec_ = costmap_ros_->getRobotFootprint()`），
+      # DWB 的 ObstacleFootprintCritic 把 LETHAL/内切(253)/未知(255) 都算碰撞 ⇒ 车心离墙
+      # 小于约 0.07+0.07=0.14 m 即判不可行。0.18 > 0.14，留了 4 cm 余量。
+      min_obstacle_dist: 0.18           # ★期望离障余量(m)，从 footprint 边缘算起；太小会撞上硬校验的内切带
+      # ROS1 竞速取 0.6（演示配置未设 → TEB 默认 0.0 = 不惩罚膨胀带）。开启后 TEB 会额外
+      # 惩罚落在膨胀带（代价 1~252）内的姿态，而不是只看致命格。
+      inflation_dist: 0.6               # 惩罚"落在膨胀带内姿态"的距离尺度(m)（0 = 不惩罚，只看致命格）
+      include_costmap_obstacles: True    # 把实时代价地图障碍纳入优化
+      # ROS1 竞速取 1.0（演示配置取 2.0）：只考虑车后 1 m 内的代价地图障碍。
+      costmap_obstacles_behind_robot_dist: 1.0  # 只考虑车后该距离内的代价地图障碍(m)
+      obstacle_poses_affected: 15       # 每个障碍点影响轨迹上最近的位姿数（ROS1 竞速 15 / 演示 8）
+      # ROS1 仿真未设 costmap_converter_plugin（等价于不用转换器）；ROS2 的 TEB 仍把它
+      # 作为构建依赖，故本包照旧需要编译 costmap_converter，但运行时插件留空。
+      # 留空时走 updateObstacleContainerWithCostmap：**只把 LETHAL_OBSTACLE(254) 当障碍点**
+      # （teb_local_planner_ros.cpp:478），而硬校验把内切带(253)也算碰撞 —— 这是"优化器
+      # 认为安全、校验却否决"的根源，故 min_obstacle_dist / weight_obstacle 必须给足。
+      # costmap_converter_rate 在 ROS2 的 TEB 中已不再声明，故不设。
+      costmap_converter_plugin: ""      # 代价地图→障碍物转换插件名；留空 = 不用转换器（只取致命格）
+      costmap_converter_spin_thread: True  # 转换器是否在自己的线程里运行
+
+      # Optimization  ← 调参主战场；下面三组权重的相对大小决定行为（见各项注释）
+      no_inner_iterations: 5             # 内层 g2o 迭代次数（越大越精、越慢）
+      no_outer_iterations: 4             # 外层迭代次数
+      optimization_activate: True       # 是否真正执行图优化（False 只做初始化，调试用）
+      optimization_verbose: False        # 打开会刷大量优化过程日志
+      penalty_epsilon: 0.1               # 软约束松弛量(m)：偏差小于它不罚
+      weight_max_vel_x: 2.0              # max_vel_x 的**软上限**惩罚（注意：不是提速项）
+      # ROS1 竞速取 1（演示配置取 2.2）。
+      weight_max_vel_theta: 1.0         # 角速度软上限惩罚（约束强度，不是提速项）
+
+      # ROS1 竞速取 1（演示配置取 2.0）。
+      weight_acc_lim_x: 1.0             # 线加速度上限的软惩罚
+      weight_acc_lim_theta: 1.0         # 角加速度上限的软惩罚
+      weight_kinematics_nh: 1000.0       # 非完整约束（禁止侧向运动）——差速/阿克曼都保持高值
+      # ⚠️ 实验值 100（2026-09-13，tebfwd 轮）：原值 1.0。
+      # 动机：tebpost1 实测 TEB 原输出有 44/173 个样本 vx<0（25% 在倒车，最小 -1.0、
+      # 均值 -0.58），34.4s 中 19.2s 低于 0.6 m/s，/start 后 30s 仅推进 17.40m。
+      # 本文件记录的合理区间是 **1~100**，故取上端让"不愿倒车"真正生效。
+      # 实测效果：倒车样本 25%→14~15%，vx 均值 0.439→0.640（+46%）——是真实改善，
+      # 但 30s 内里程仅 17.40→18.24/16.00m（在轮间方差内），未能改变首门结果。
+      # ⚠️ 反例在先：fast 轮试过 50（同样想堵住"用倒车/绕远回避转角"），实测无改善
+      # （运动段均速 0.317/0.394 对 full 的 0.418/0.365）故撤回。本次上探到 100 且把
+      # 倒车量化到了模型输出层，收益比 fast 轮明确，故保留。
+      weight_kinematics_forward_drive: 100.0  # 抑制倒车的权重（越大越不愿倒车）
+      # 1.0 → **100**：软约束太软等于没有。实测（full 轮）TEB 在走廊交汇处连续输出
+      # vx≈0.08 配 |wz|≈1.0，隐含转弯半径 R = v/ω ≈ 0.08~0.11 m，**远小于物理极限
+      # 0.38 m** —— 即优化器为了让步于障碍/时间项直接无视了 carlike 约束，"原地捻转"
+      # 于是仍然存在（只是不再输出 vx=0 的死锁形态）。
+      # 本文件第 4 轮的记录写明该权重合理区间是 **1~100**，故取区间上端让约束真正生效。
+      # （第 4 轮 1800+R=0.167 那次失败是"极值 + 错误 R + 小 footprint"三者叠加，与本轮不同：
+      #  现在 R=0.38 与 transform.py 的 ±0.6 钳位一致、footprint 是 circular 0.2、闸门已归零。）
+      weight_kinematics_turning_radius: 100.0  # ★carlike 转弯半径约束强度（1~100；1 ≈ 形同不生效）
+      # 20 → 100 → **回到 20**：ROS1 竞速值。
+      # fast 轮把本项推到 100（想用"跑快"激励换速度），实测没用甚至更差
+      # （运动段均速 0.317/0.394 对 full 的 0.418/0.365）——说明本仿真里限制速度的
+      # 不是一个"时间项太弱"的问题，故撤回。真正该动的是 carlike 约束强度与离墙余量。
+      weight_optimaltime: 20.0          # ★"跑快"激励：惩罚总时间，越大越倾向快（TEB 里唯一的提速项）
+      weight_shortest_path: 0.0         # 最短路径激励（0 = 关闭）
+      # 20 → 100：ROS1 竞速值（与 weight_optimaltime 20 构成 5:1 障碍主导）。
+      # 依据链：优化器只把 LETHAL(254) 当障碍点（teb_local_planner_ros.cpp:478），
+      # 而硬校验把内切带(253)也算碰撞 → 障碍惩罚太弱时优化出的轨迹贴墙、被校验否决；
+      # 校验失败即零速（同文件 396-400），且每周期重算仍失败 → 死锁。
+      # 实测（2026-09-12）：weight_obstacle 5 + min_obstacle_dist 0.088 →
+      # `trajectory is not feasible` 240 次/16s、零速样本 82.8%、只走 4.37m。
+      weight_obstacle: 100.0            # ★避障强度。它与 weight_optimaltime 的比值决定"贴墙还是绕远""快还是慢"
+      weight_inflation: 0.2             # 膨胀带惩罚权重（配合 inflation_dist；ROS1 竞速 0.2 / 演示 1.01）
+      weight_dynamic_obstacle: 1.0       # 动态障碍权重（本仿真无动态障碍源，惰性）
+      # ROS1 竞速取 False（演示配置取 True）。
+      selection_alternative_time_cost: False  # 多拓扑选择时是否用时间代价（同伦探索关闭时无效）
+      # ROS1 竞速取 0.0（演示配置取 0.1）。
+      switching_blocking_period: 0.0    # 切换拓扑的最小间隔(s)（同伦探索关闭时无效）
+
+      # Homotopy Class Planner（TEB 的多拓扑并行探索；ROS1 竞速与本配置**都关闭**）
+      # 开启后 TEB 会同时优化多条不同绕行拓扑的轨迹（它最强的能力），但计算量显著上升；
+      # 若要试，建议同时把 controller_frequency 降到 2~3 Hz 并给 max_number_classes 调小。
+      enable_homotopy_class_planning: False  # ★是否并行探索多条绕行拓扑（TEB 最强能力，计算量大）
+      enable_multithreading: True       # 是否多线程优化（ROS1 竞速 True / 演示 False）
+      max_number_classes: 4              # 仅在上面开启时有效
+      roadmap_graph_samples: 15          # 以下为同伦类探索的采样/判据参数，关闭时均无效
+      roadmap_graph_area_width: 5.0     # 同伦探索的采样区域宽度(m)（关闭时无效）
+      h_signature_prescaler: 0.5        # 同伦签名缩放系数（关闭时无效）
+      h_signature_threshold: 0.1        # 同伦签名判定阈值（关闭时无效）
+      obstacle_heading_threshold: 0.45  # 障碍朝向阈值（关闭时无效）
+      visualize_hc_graph: False          # rviz 里画同伦图（调试用）
+      # 说明：原版仿真把 Recovery 段（shrink_horizon_* / oscillation_*）整体注释掉了，
+      # 即采用 TEB 默认值（默认已开启），故此处同样不设，保持与原版一致。
+      
+controller_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 5.0             # 代价地图更新频率(Hz)
+      publish_frequency: 2.0            # 代价地图发布频率(Hz)
+      global_frame: <robot_namespace>/odom  # 该代价地图的全局坐标系
+      robot_base_frame: <robot_namespace>/base_link  # 机器人基座坐标系（footprint 以此为中心）
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+      rolling_window: true              # 是否使用跟随机器人滚动的局部地图窗口
+      width: 6                          # 代价地图宽度(m)（滚窗模式下即窗口宽度）
+      height: 6                         # 代价地图高度(m)（滚窗模式下即窗口高度）
+      resolution: 0.05                  # 栅格分辨率(m/格)；越小越精细、越耗内存
+      # 以下三项对齐 ROS1 tianracer_navigation/param/teb_carlike/costmap_common_params.yaml：
+      # inflation_radius 0.3、cost_scaling_factor 10.0，且原版未设 robot_radius（用 costmap 默认 0.1）。
+      # 本文件此前由 TurtleBot3 Nav2 模板抄来，三项被放大到 2.5 / 8.0 / 0.305，在 0.96m 宽的
+      # 赛道里会把走廊压成零自由代价格，导致 DWB「No valid trajectories」。
+      # 局部代价地图由 3x3 放大到 6x6（原版 4x4）：DWB 需要看到足够远的转弯才能规划过弯。
+      # robot_radius 0.1 -> 0.07：URDF 车体为 0.28x0.10 的 box（半宽仅 0.05），0.1 相当于
+      # 把内切半径放大一倍，致命带随之变宽、窄道里更容易出现死区。
+      # ★ 对 TEB 特别重要：这个值**同时决定 TEB 硬可行性校验的几何**——校验用的不是 TEB 自己的
+      # footprint_model，而是本代价地图的 footprint（teb_local_planner_ros.cpp:152
+      # `footprint_spec_ = costmap_ros_->getRobotFootprint()`，本文件只设了 robot_radius ⇒
+      # 得到半径 0.07 的圆）。校验要求该圆不碰内切带(253)/致命(254)/未知(255)，
+      # 即**车心离墙需 > 0.07 + 0.07 = 0.14 m**，这也正是 min_obstacle_dist 的底线来源。
+      # 调小它可放宽硬校验，但会同时放宽膨胀层内切半径。
+      robot_radius: 0.07                # 机器人半径(m)（对 TEB 硬校验的影响见上方长注释）
+      plugins: ["voxel_layer", "inflation_layer"]  # 本代价地图启用的插件列表（顺序即分层顺序）
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"  # 插件类：膨胀层（按离障距离生成代价梯度）
+        cost_scaling_factor: 10.0       # 代价值随距离衰减的速率（越大衰减越快、代价带越窄）
+        inflation_radius: 0.3           # 膨胀半径(m)：从致命格向外生成代价梯度
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"  # 插件类：三维体素层（激光障碍的标记与清除）
+        enabled: True                   # 是否启用本层
+        publish_voxel_map: True         # 是否发布三维体素地图（rviz 调试用）
+        origin_z: 0.0                   # 体素层原点高度(m)
+        z_resolution: 0.05              # 体素层高度分辨率(m)
+        z_voxels: 16                    # 体素层高度方向格数（×z_resolution = 覆盖高度）
+        max_obstacle_height: 2.0        # 视为障碍的最大高度(m)，高于此的点忽略
+        mark_threshold: 0               # 标记障碍所需最少点数（0 = 1 个点即标记）
+        observation_sources: scan       # 观测源名称列表（对应下面同名的配置块）
+        scan:
+          topic: /<robot_namespace>/scan  # 该观测源订阅的话题
+          max_obstacle_height: 2.0      # 视为障碍的最大高度(m)，高于此的点忽略
+          clearing: True                # 是否用该观测源清除障碍（free 空间）
+          marking: True                 # 是否用该观测源标记障碍
+          data_type: "LaserScan"        # 该观测源的消息类型
+          raytrace_max_range: 3.0       # 射线清除的最远距离(m)：此范围内被射线穿过的格会被清成自由
+          raytrace_min_range: 0.0       # 射线清除的最近距离(m)（消除车体自遮挡）
+          obstacle_max_range: 2.5       # 标记障碍的最远距离(m)
+          obstacle_min_range: 0.0       # 标记障碍的最近距离(m)
+      static_layer:
+        map_subscribe_transient_local: True  # 订阅地图用 transient_local QoS（保证一定收到最新地图）
+      always_send_full_costmap: True    # 是否每次都发送完整代价地图（否则只发差分）
+  local_costmap_client:
+    ros__parameters:
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+  local_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0             # 代价地图更新频率(Hz)
+      publish_frequency: 1.0            # 代价地图发布频率(Hz)
+      global_frame: <robot_namespace>/map  # 该代价地图的全局坐标系
+      robot_base_frame: <robot_namespace>/base_link  # 机器人基座坐标系（footprint 以此为中心）
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+      # 同 local_costmap：对齐 ROS1 原版（inflation_radius 0.3、cost_scaling_factor 10.0），
+      # robot_radius 由模板的 0.305 降到 0.07（URDF 车体 0.28x0.10，半宽 0.05）
+      robot_radius: 0.07                # 机器人半径(m)（对 TEB 硬校验的影响见上方长注释）
+      resolution: 0.05                  # 栅格分辨率(m/格)；越小越精细、越耗内存
+      track_unknown_space: true         # 是否保留未知区域（false = 把未知当自由）
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]  # 本代价地图启用的插件列表（顺序即分层顺序）
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"  # 插件类：二维障碍层（激光实时障碍）
+        enabled: True                   # 是否启用本层
+        observation_sources: scan       # 观测源名称列表（对应下面同名的配置块）
+        scan:
+          topic: /<robot_namespace>/scan  # 该观测源订阅的话题
+          max_obstacle_height: 2.0      # 视为障碍的最大高度(m)，高于此的点忽略
+          clearing: True                # 是否用该观测源清除障碍（free 空间）
+          marking: True                 # 是否用该观测源标记障碍
+          data_type: "LaserScan"        # 该观测源的消息类型
+          raytrace_max_range: 3.0       # 射线清除的最远距离(m)：此范围内被射线穿过的格会被清成自由
+          raytrace_min_range: 0.0       # 射线清除的最近距离(m)（消除车体自遮挡）
+          obstacle_max_range: 2.5       # 标记障碍的最远距离(m)
+          obstacle_min_range: 0.0       # 标记障碍的最近距离(m)
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"  # 插件类：静态层（来自 map_server 的静态地图）
+        map_subscribe_transient_local: True  # 订阅地图用 transient_local QoS（保证一定收到最新地图）
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"  # 插件类：膨胀层（按离障距离生成代价梯度）
+        cost_scaling_factor: 10.0       # 代价值随距离衰减的速率（越大衰减越快、代价带越窄）
+        inflation_radius: 0.3           # 膨胀半径(m)：从致命格向外生成代价梯度
+      always_send_full_costmap: True    # 是否每次都发送完整代价地图（否则只发差分）
+  global_costmap_client:
+    ros__parameters:
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+  global_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: true                # 使用仿真时钟（/clock）；仿真下必须 true
+
+map_server:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+    yaml_filename: "turtlebot3_world.yaml"  # 地图 yaml 文件名（此处是占位值，实际由 launch 按世界名覆盖）
+    map_topic: /<robot_namespace>/map  # 地图话题（map_server 发布 / AMCL 订阅）
+    frame_id: <robot_namespace>/map  # 地图坐标系
+
+map_saver:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+    save_map_timeout: 5.0         # 存图等待地图数据的超时(s)
+    free_thresh_default: 0.25     # 存图时的默认自由阈值
+    occupied_thresh_default: 0.65  # 存图时的默认占用阈值
+    map_subscribe_transient_local: True  # 订阅地图用 transient_local QoS（保证一定收到最新地图）
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 20.0  # 期望的全局规划频率(Hz)
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+    planner_plugins: ["GridBased"]  # 全局规划插件清单（下面 GridBased 段）
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"  # 插件类：NavFn 全局规划器（Dijkstra 或 A*）
+      # 对齐 ROS1 tianracer_navigation/param/teb_carlike/global_planner_params.yaml：
+      #   allow_unknown: false          # 原版明确关闭，注释指出须配合 track_unknown_space: true
+      #   default_tolerance: 0.1
+      #   use_dijkstra: true
+      # 本图 87.9% 为未知区，allow_unknown: true（模板默认）会让规划器穿未知区抄近路、
+      # 绕开真实赛道与检查门；关闭后路径被约束在已建图的赛道内。
+      tolerance: 0.1                    # 全局路径到目标点的容差(m)：容差内即算"规划成功"
+      use_astar: false                  # true = A*，false = Dijkstra
+      allow_unknown: false              # 是否允许全局路径穿过未知区域（本图 87.9% 未知，故必须 false）
+
+planner_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+
+recoveries_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw  # 恢复行为使用的代价地图话题
+    footprint_topic: local_costmap/published_footprint  # 机器人 footprint 话题
+    cycle_frequency: 10.0         # 恢复行为的执行频率(Hz)
+    recovery_plugins: ["spin", "backup", "wait"]  # 恢复行为插件清单（原地转/后退/等待）
+    spin:
+      plugin: "nav2_recoveries/Spin"    # 插件类：原地旋转恢复
+    backup:
+      plugin: "nav2_recoveries/BackUp"  # 插件类：后退恢复
+    wait:
+      plugin: "nav2_recoveries/Wait"    # 插件类：等待恢复
+    global_frame: <robot_namespace>/odom  # 该代价地图的全局坐标系
+    robot_base_frame: <robot_namespace>/base_link  # 机器人基座坐标系（footprint 以此为中心）
+    transform_timeout: 0.1        # 恢复行为等待 TF 变换的超时(s)
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+    simulate_ahead_time: 2.0      # 下发速度前向前模拟的时长(s)（用于碰撞预判）
+    max_rotational_vel: 1.0       # 旋转恢复的最大角速度(rad/s)
+    min_rotational_vel: 0.4       # 旋转恢复的最小角速度(rad/s)
+    rotational_acc_lim: 3.2       # 旋转恢复的角加速度上限(rad/s²)
+
+robot_state_publisher:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+
+# 本节点此前**未在任何参数文件里配置**，于是吃 Nav2 出厂默认 max_velocity = [0.5, 0, 2.5]，
+# 把线速度硬夹在 0.5 m/s —— 实测 cmd_vel.x 最大值恰好是 0.500，这是「车速上不去」的直接
+# 原因（链路 controller_server -> /cmd_vel_nav -> velocity_smoother -> /cmd_vel）。
+#
+# 值守规则：本段两条通道必须与 TEB 的 max_vel_x / max_vel_theta **成对修改**，
+# 只改规划器不改这里会被平滑器夹回去（本项目已踩过一次）。
+# 当前对齐值：线速度 1.5 = TEB max_vel_x；角速度 3.95 = 1.5×tan(0.6)/0.26 = TEB max_vel_theta。
+# max_accel/max_decel 与 TEB 的 acc_lim_* 同量级，不做额外收缩。
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true            # 使用仿真时钟（/clock）；仿真下必须 true
+    max_velocity: [1.5, 0.0, 3.95]  # ★速度上限 [x, y, theta]，必须与规划器 max_vel_x/max_vel_theta 成对修改
+    min_velocity: [-1.5, 0.0, -3.95]  # ★速度下限 [x, y, theta]，符号与上限相反
+
+waypoint_follower:
+  ros__parameters:
+    loop_rate: 20                 # 路点跟随的主循环频率(Hz)
+    stop_on_failure: false        # 某个路点失败时是否整体停止
+    waypoint_task_executor_plugin: "wait_at_waypoint"  # 到达每个路点后执行的任务插件名
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"  # 插件类：到点等待任务
+      enabled: True                     # 是否启用本层
+      waypoint_pause_duration: 200      # 在每个路点停留的时长(ms)

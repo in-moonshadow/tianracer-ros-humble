@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>tianracer</name>
+  <version>1.0.0</version>
+  <description>Tianracer is a meta-package for tianbot racecar</description>
+  <maintainer email="tianb03@hotmail.com">Tian Bo</maintainer>
+  <license>GPLv3</license>
+  <export></export>
+</package>

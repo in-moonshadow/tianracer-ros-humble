@@ -1,0 +1,12 @@
+# tianracer 仿真栈默认环境变量。
+# 原属 tianracer_bringup/env-hooks/，因该包（实机总装）已删除，迁入本包。
+# 只保留仿真链实际读取的两项；原文件里的硬件配置项（串口/相机/GPS/手柄等）
+# 对应的是已删除的实机驱动包，不再注入。
+
+# 车型：compact / standard / fullsize。
+# 决定 tianracer_tf.launch.py 的 TF 分支与 vehicle_geometry.yaml 的轴距取值。
+set;TIANRACER_BASE;compact
+
+# 雷达型号：rplidar_a1, richbeam, velodyne, rslidar。
+# 决定 tianracer_tf.launch.py 里激光/IMU 的静态变换分支。
+set;TIANRACER_LIDAR;richbeam

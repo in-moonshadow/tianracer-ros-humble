@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  navigate_to_pose：周期重规划 + 恢复行为。
+
+  本文件 = ROS 2 Humble 原生 nav2_bt_navigator 版本，**只改恢复序列 RecoveryActions**
+  （其余 RateController 1.0Hz / number_of_retries 6、1 等一律保持原生值）。
+
+  原始（原生）序列：
+      清代价地图 → Spin(1.57) → Wait(5s) → BackUp(0.30m @ 0.05m/s)
+  本文件改为：
+      清代价地图 → BackUp(0.35m @ 0.30m/s) → Wait(2s)
+
+  ── 为什么去掉 Spin ────────────────────────────────────────────────
+  本车是类车（Ackermann），**不能原地旋转**；而判罚规则是「停车超过
+  stop_time_threshold = 10s 即终止计时」（tianracer_gazebo/launch/judge.launch.py，
+  judge_system.py:291-298）。Spin 对类车必然跑满 10s 时限后失败（实测日志：
+  "Exceeded time allowance before reaching the Spin goal - Exiting Spin" → "spin failed"），
+  一个动作就吃光全部预算，真正能脱困的 BackUp 结构上永远轮不到
+  （2026-09-16 实测：nav2.log 里 `Running backup` 计数恒为 0，每个卡死轮都伴随
+  `No valid trajectories out of 420!` 与 `Controller patience exceeded`）。
+
+  ── 为什么 Wait 由 5s 收到 2s、BackUp 速度由 0.05 提到 0.30 ──────────
+  判停规则按**每条 odom 的位移 step < 0.001m** 计数，0.05m/s 在高速 odom 下可能仍被
+  判为「未移动」，越不过阈值就重置不了计时。0.30m/s 稳定越过该阈值，且 0.35m 只需
+  约 1.2s 走完；Wait 5s 在 10s 预算里占比过大。
+
+  ── 实测验证（2026-09-17，test_indoor @ navfn_dwb）──────────────────
+  本配置 `btf`：完赛 6/7。真正被证实的是**机制**而非总完赛率——
+    · 模式甲（DWB 无解，patience exceeded > 0）：旧 BT 下 2/2 致命（都死在 Spin），
+      本配置下 5/5 生还（含 NoValid 674 次、patience 29 次的极端轮），全部由 BackUp 脱困。
+    · 总完赛率 6/7 vs 基线 4/6 在 Fisher 检验下 p≈0.59，**样本量下不显著**，不敢当定论。
+
+  ── 为什么「清图」与「BackUp」保持并列，而不是合并成一个 Sequence ──────
+  曾试过合并成一个 `<Sequence>`（清图 + BackUp 同 tick），理由是 RoundRobin 每 tick
+  只推进一个子节点、合并能让 BackUp 早到一个 tick。**实测为显著回归**：
+  合并版 `btg` 完赛 2/8，而并列版 `btf` 6/7（Fisher p≈0.04）。同时把
+  controller_server 的 movement_time_allowance 由 10.0 下调到 4.0 也一并回退了。
+  原因：合并后每次恢复都会后退 0.35m，而 allowance 下调 2.5 倍使恢复触发频率大增，
+  车更容易被推进 test_indoor 的 (-1.77, 3.78) 死角——那里前进、倒车**双向锁死**
+  （实测 BackUp 自己跑满 10s 也退不动），一旦进入必然丢轮。故两者均已回退。
+
+  另注：allowance 调小也治不了那个死角——既然 BackUp 本身就退不动，更早发现它没有意义。
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+      <PipelineSequence name="NavigateWithReplanning">
+        <RateController hz="1.0">
+          <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+            <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+          </RecoveryNode>
+        </RateController>
+        <RecoveryNode number_of_retries="1" name="FollowPath">
+          <FollowPath path="{path}" controller_id="FollowPath"/>
+          <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+        </RecoveryNode>
+      </PipelineSequence>
+      <ReactiveFallback name="RecoveryFallback">
+        <GoalUpdated/>
+        <RoundRobin name="RecoveryActions">
+          <Sequence name="ClearingActions">
+            <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+          </Sequence>
+          <BackUp backup_dist="0.35" backup_speed="0.30"/>
+          <Wait wait_duration="2"/>
+        </RoundRobin>
+      </ReactiveFallback>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>

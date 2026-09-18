@@ -1,0 +1,455 @@
+# 全局规划器对照参数：Theta* 全局规划器 + DWB 局部规划器（定稿）
+# ---------------------------------------------------------------------------
+# 本文件由 tools/gen_global_planner_params.py 自动生成，**勿手改**。
+# 基底 = params/navfn_dwb_nav2_params.yaml（DWB 定稿），只替换 GridBased 段。
+# 目的：在局部规划器、costmap、AMCL、smoother 完全不变的前提下，
+#       单独评估「NavFn 栅格折线路径」是否为竞速瓶颈。
+#
+# 运行：ros2 launch tianracer_navigation2 nav2.launch.py use_planner=theta_star_dwb
+# ---------------------------------------------------------------------------
+
+amcl:
+  ros__parameters:
+    use_sim_time: true
+    alpha1: 0.1
+    alpha2: 0.1
+    alpha3: 0.1
+    alpha4: 0.1
+    alpha5: 0.2
+    base_frame_id: <robot_namespace>/base_footprint
+    beam_skip_distance: 0.5
+    beam_skip_error_threshold: 1.0
+    beam_skip_threshold: 0.3
+    do_beamskip: false
+    global_frame_id: <robot_namespace>/map
+    lambda_short: 0.1
+    laser_likelihood_max_dist: 2.0
+    laser_max_range: 3.5
+    laser_min_range: -1.0
+    laser_model_type: "likelihood_field"
+    max_beams: 180
+    max_particles: 3000
+    min_particles: 500
+    odom_frame_id: <robot_namespace>/odom
+    pf_err: 0.02
+    pf_z: 0.99
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
+    resample_interval: 1
+    robot_model_type: "nav2_amcl::DifferentialMotionModel" # 运动模型：差分（Ackermann 车不能横移；对齐 ROS1 odom_model_type=diff）
+    save_pose_rate: 0.5
+    sigma_hit: 0.2
+    tf_broadcast: true
+    transform_tolerance: 0.5
+    update_min_a: 0.2
+    update_min_d: 0.2
+    z_hit: 0.5
+    z_max: 0.05
+    z_rand: 0.5
+    z_short: 0.05
+    scan_topic: scan
+    map_topic: map
+    # 启动即自动定位：AMCL 在 configure 阶段直接采用该位姿，无需再发 /initialpose 话题。
+    # 注意：出生位姿由 nav2.launch.py 按 world:= 从 track_spawn.py 注入，此处数值仅作未注入时的回退。
+    set_initial_pose: true
+    initial_pose:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      yaw: 1.54
+
+amcl_map_client:
+  ros__parameters:
+    use_sim_time: true
+
+amcl_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    global_frame: <robot_namespace>/map
+    robot_base_frame: <robot_namespace>/base_link
+    odom_topic: odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    enable_groot_monitoring: True
+    groot_zmq_publisher_port: 1666
+    groot_zmq_server_port: 1667
+    # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
+    # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
+    # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
+    # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
+    plugin_lib_names:
+    - nav2_compute_path_to_pose_action_bt_node
+    - nav2_compute_path_through_poses_action_bt_node
+    - nav2_follow_path_action_bt_node
+    - nav2_back_up_action_bt_node
+    - nav2_spin_action_bt_node
+    - nav2_wait_action_bt_node
+    - nav2_clear_costmap_service_bt_node
+    - nav2_is_stuck_condition_bt_node
+    - nav2_goal_reached_condition_bt_node
+    - nav2_goal_updated_condition_bt_node
+    - nav2_initial_pose_received_condition_bt_node
+    - nav2_reinitialize_global_localization_service_bt_node
+    - nav2_rate_controller_bt_node
+    - nav2_distance_controller_bt_node
+    - nav2_speed_controller_bt_node
+    - nav2_truncate_path_action_bt_node
+    - nav2_goal_updater_node_bt_node
+    - nav2_recovery_node_bt_node
+    - nav2_pipeline_sequence_bt_node
+    - nav2_round_robin_node_bt_node
+    - nav2_transform_available_condition_bt_node
+    - nav2_time_expired_condition_bt_node
+    - nav2_distance_traveled_condition_bt_node
+    - nav2_single_trigger_bt_node
+    - nav2_goal_updated_controller_bt_node
+    - nav2_is_battery_low_condition_bt_node
+    - nav2_navigate_through_poses_action_bt_node
+    - nav2_navigate_to_pose_action_bt_node
+    - nav2_remove_passed_goals_action_bt_node
+    - nav2_planner_selector_bt_node
+    - nav2_controller_selector_bt_node
+    - nav2_goal_checker_selector_bt_node
+
+bt_navigator_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    controller_frequency: 20.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
+    controller_plugins: ["FollowPath"]
+
+    # Progress checker parameters
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5
+      # ⚠️ 10.0 是实测后的定稿值，**不要下调**。2026-09-17 曾试过降到 4.0，理由是该值
+      # 恰好等于裁判的 stop_time_threshold = 10.0s（judge.launch.py），两个计时器同时
+      # 起步、裁判必然先到。但实跑证明这是**显著回归**：4.0 组完赛 2/8，10.0 组 6/7
+      # （Fisher p≈0.04）。因为窗口缩小 2.5 倍使「无进展」判定触发频率大增，每次恢复
+      # 都会清代价地图并后退 0.35m，车因此更容易被推进 test_indoor 的 (-1.77, 3.78)
+      # 死角——那里前进/倒车**双向锁死**，进入必然丢轮。
+      # 而且下调本就治不了那个死角：BackUp 自己在那儿也退不动（实测跑满 10s 失败），
+      # 更早发现它没有意义。
+      movement_time_allowance: 10.0
+    # Goal checker parameters
+    # yaw_goal_tolerance 由 0.25 放宽到 0.6：阿克曼车难以在目标点把朝向对准到 0.25rad。
+    # 路点推进实际由主程序的 2.15m 距离阈值决定，不依赖该朝向容差。
+    precise_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.6
+      stateful: True
+    general_goal_checker:
+      stateful: True
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.6
+    # DWB parameters
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: True
+      # 阿克曼可行域：车不能原地转。**实际生效的舵角上限是 ±0.6 rad**——URDF 的
+      # left/right_steering_hinge_joint limit 写的是 ±1，但真正在跑的 nav_sim
+      # （tianracer_gazebo/scripts/transform.py，参数 max_steering_angle: 0.6）
+      # 在换算后把舵角钳到 ±0.6 才下发，所以 ±0.6 才是有效限位。
+      # transform.py 做 δ = atan(L·ω/v)，L=0.26 -> 转弯半径 R = L/tanδ = v/ω。
+      #
+      # 为什么要把 max_vel_theta 由 1.0 提到 4.7（2026-09-12 实测）：原值 1.0 与
+      # min_vel_x 0.4 是自洽的（tan(0.6)/L×0.4 = 1.05），但那只在低速成立——
+      # R = v/ω，ω=1.0 意味着 **R ≥ v**：车速一到 2.5 m/s 就需要 R=2.5m，
+      # 而赛道净宽仅 0.96m，这个弯物理上拐不过去（实测：车以 1.90 m/s 冲进
+      # (-4,-8) 附近的弯角后卡死 17.8s；改成 4.7 后同一弯角以 0.10m 贴近距离通过）。
+      # 提到 4.7 后低速段会出现 ω > 2.63·v 的采样对，被 transform.py 钳到 ±0.6
+      # （车实际转得比 DWB 预测更宽，靠反馈 critics 修正）——属可接受的软代价。
+      #
+      # min_vel_x 不随之抬高（**已实测权衡**）：严格自洽要求 max_vel_theta ≤ 2.63×min_vel_x，
+      # 但那会要求 min_vel_x ≥ 1.8，而实测把 min_vel_x 由 0.4 抬到 0.8 就出现致命退化——
+      # 车贴近障碍时 `No valid trajectories out of 420!` ×112（420 条候选 100% 撞致命格，
+      # 因为 v≥0.8 的弧线全部出自由区），既不能脱困也不能蠕动，被裁判 10s 未移动判据终止。
+      # 采样不自洽是软代价，失去低速可机动性是硬故障，故只把地板抬到安全区上沿。
+      # ⭐ 定稿 0.6（2026-09-13，方案1「抬地板」）：
+      # 0.7 系上边界探测（99.45s / 104.52s，均值 102.0s），与 0.6（均值 103.0s）
+      # 统计上无差别、离 0.8 致命悬崖更近（齿尖 vx≥0.8 弧线 100% 撞致命格先例），
+      # 故取 0.6。相比原 0.4：实测快约 8s（111.25 → ~103s），钉地板占比 20.9%→~15%，
+      # 减速段 11→~1（仅终点），NVT/THO 计数与 0.4 完全相同。
+      min_vel_x: 0.6
+      min_vel_y: 0.0
+      max_vel_x: 1.5
+      max_vel_y: 0.0
+      max_vel_theta: 4.7
+      min_speed_xy: 0.0
+      max_speed_xy: 1.5
+      min_speed_theta: 0.0
+      acc_lim_x: 2.5
+      acc_lim_y: 0.0
+      acc_lim_theta: 3.2
+      decel_lim_x: -2.5
+      decel_lim_y: 0.0
+      decel_lim_theta: -3.2
+      vx_samples: 20
+      vy_samples: 1
+      vtheta_samples: 20
+      # 轨迹地平线（轨迹长度 = sim_time × 速度）。
+      # 原 1.7 配当时更高的速度上限时，轨迹远超赛道净宽，273 条候选 100% 撞致命格
+      # （日志 "1.00: BaseObstacle/Trajectory Hits Obstacle."），车陷死区原地不动。
+      # 0.8 × 1.5 = 1.2m 可产生有效轨迹（基线 113.61s / 9-9 门）。
+      #
+      # ⚠️ 2026-09-13 实测：试过 1.2（方案 A，想靠更长视界越过西侧走廊的横墙齿，
+      # 让 DWB 规划连续 S 形以减少「锯齿式减速」）——**失败，已回退，勿再试**。
+      # 结果：0/9 门、11.93m、25.42s 被判停车，卡在西侧走廊第二道齿尖
+      # (-1.78, 2.68)（该齿向东延伸到 x≈-1）。视界 1.8m 让齿尖处所有候选轨迹
+      # 都撞格：`No valid trajectories` 22→116（5.3×）、`Trajectory Hits Obstacle`
+      # 11→58（5.3×）、`failed to create plan` 0→3。
+      # 结论：**这条走廊要求 DWB 的视界保持短**；视界越长，齿尖处越没有可行弧线。
+      # 减速是走廊几何的必然结果，不是能靠调视界消除的配置问题。
+      sim_time: 0.8
+      linear_granularity: 0.05
+      angular_granularity: 0.025
+      transform_tolerance: 0.2
+      xy_goal_tolerance: 0.25
+      trans_stopped_velocity: 0.25
+      short_circuit_trajectory_evaluation: True
+      stateful: True
+      # 去掉 RotateToGoal / GoalAlign：二者奖励「原地转向对准目标朝向」，而阿克曼车
+      # 既不能原地转（vx ≥ min_vel_x）又受 ±0.6rad 舵角限位（transform.py 钳位）约束，留着只会持续产生
+      # 不可行轨迹，是 "No valid trajectories" 的主要来源之一。
+      # BaseObstacle.scale 0.02 -> 0.3：原值几乎不给障碍代价权重，车贴着膨胀层走；
+      # 提高后轨迹会主动避开高代价区，减少「贴墙进死区」。
+      critics: ["Oscillation", "BaseObstacle", "PathAlign", "PathDist", "GoalDist"]
+      # ⚠️ BaseObstacle.scale 保持 0.3：2026-09-13 试过降到 0.15（想缩小快慢档的
+      # BaseObstacle 差距——慢档轨迹短、离墙远，BO 恒为 0 白占便宜），**实测倒退**：
+      # 112.16s 对 goal36 的 111.25s。西侧蛇形第 4 段 1.08→1.00（退）、第 7 段
+      # 1.03→1.08（进），两段互相抵消、整体略差。**故回退，勿再试。**
+      BaseObstacle.scale: 0.3
+      PathAlign.scale: 32.0
+      PathAlign.forward_point_distance: 0.1
+      PathDist.scale: 32.0
+      # GoalDist.scale 24.0 -> 36.0（2026-09-13，**实测最优，保留**）。
+      #
+      # 实测：三圈 9/9 门 / 111.25s，对比原值 24 的 113.70s —— 快 2.45s（2.2%）。
+      # 改善集中在西侧「梳齿蛇形」走廊（减速最密集处）：第 4 段 0.96→1.08（+12.5%）、
+      # 第 7 段 1.00→1.03；其余段持平。减速段由 15 段/25.7s 降到 11 段/22.8s。
+      #
+      # 依据（用 dwb_recorder 抓 DWB 每周期全部候选的得分后实测）：
+      #   精确公式 total = 0.30·BaseObstacle + 0.80·PathAlign + 0.80·PathDist
+      #                        + 0.60·GoalDist   （6026 条合法轨迹最小二乘，残差 0）
+      # 即 yaml 的 scale 0.3/32/32/24 对应的实际权重是 0.3/0.8/0.8/0.6——
+      # 三个「距离类」critic 的 raw_score 被 DWB 除以了 40（消息自带的 critic_scales
+      # 字段可证：yaml 36 对应消息 scale 0.9）。改 yaml 值前务必按 /40 换算。
+      #
+      # ⚠️ **但 36 并未根治问题**：11 个减速现场仍全部是「软代价」——实选恒为
+      # min_vel_x=0.40，而满速 1.50 的可行解就在候选集里（可行候选 420/420）。
+      # 修正口径后的反事实扫描（用消息 scale、过滤 total<0 的非法轨迹哨兵）显示：
+      #   w_goal 0.2~0.9（yaml 8~36）全部仍选 0.40；需 ≥1.2（yaml 48+）才升到 0.81。
+      # 深层原因是 **sim_time × vx 的耦合**：慢速轨迹只穿越 0.32m、天然离障碍远且
+      # 无需转向，故其总分结构性更低。**只调 critic 权重无法对抗这个几何事实。**
+      GoalDist.scale: 36.0
+
+controller_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 5.0
+      publish_frequency: 2.0
+      global_frame: <robot_namespace>/odom
+      robot_base_frame: <robot_namespace>/base_link
+      use_sim_time: true
+      rolling_window: true
+      width: 6
+      height: 6
+      resolution: 0.05
+      # 以下三项对齐 ROS1 tianracer_navigation/param/teb_carlike/costmap_common_params.yaml：
+      # inflation_radius 0.3、cost_scaling_factor 10.0，且原版未设 robot_radius（用 costmap 默认 0.1）。
+      # 本文件此前由 TurtleBot3 Nav2 模板抄来，三项被放大到 2.5 / 8.0 / 0.305，在 0.96m 宽的
+      # 赛道里会把走廊压成零自由代价格，导致 DWB「No valid trajectories」。
+      # 局部代价地图由 3x3 放大到 6x6（原版 4x4）：DWB 需要看到足够远的转弯才能规划过弯。
+      # robot_radius 0.1 -> 0.07：URDF 车体为 0.28x0.10 的 box（半宽仅 0.05），0.1 相当于
+      # 把内切半径放大一倍，致命带随之变宽、窄道里更容易出现死区。
+      robot_radius: 0.07
+      plugins: ["voxel_layer", "inflation_layer"]
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 10.0
+        inflation_radius: 0.3
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"
+        enabled: True
+        publish_voxel_map: True
+        origin_z: 0.0
+        z_resolution: 0.05
+        z_voxels: 16
+        max_obstacle_height: 2.0
+        mark_threshold: 0
+        observation_sources: scan
+        scan:
+          topic: /<robot_namespace>/scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+      static_layer:
+        map_subscribe_transient_local: True
+      always_send_full_costmap: True
+  local_costmap_client:
+    ros__parameters:
+      use_sim_time: true
+  local_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: true
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: <robot_namespace>/map
+      robot_base_frame: <robot_namespace>/base_link
+      use_sim_time: true
+      # 同 local_costmap：对齐 ROS1 原版（inflation_radius 0.3、cost_scaling_factor 10.0），
+      # robot_radius 由模板的 0.305 降到 0.07（URDF 车体 0.28x0.10，半宽 0.05）
+      robot_radius: 0.07
+      resolution: 0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        scan:
+          topic: /<robot_namespace>/scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 10.0
+        inflation_radius: 0.3
+      always_send_full_costmap: True
+  global_costmap_client:
+    ros__parameters:
+      use_sim_time: true
+  global_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: true
+
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    yaml_filename: "turtlebot3_world.yaml"
+    map_topic: /<robot_namespace>/map
+    frame_id: <robot_namespace>/map
+
+map_saver:
+  ros__parameters:
+    use_sim_time: true
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+    map_subscribe_transient_local: True
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 20.0
+    use_sim_time: true
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_theta_star_planner/ThetaStarPlanner"
+      # Theta* 的核心优势：路径是**任意角度的直线段**（任意两个可达栅格间直接连线），
+      # 而非 NavFn 的 8 邻域栅格折线。理论上在梳齿蛇形区能少走锯齿路。
+      #   how_many_corners 8 = 允许 8 邻域扩展（4 会退化成只能走正交方向）
+      #   w_euc_cost 1.0 / w_traversal_cost 2.0 用官方默认
+      #   use_final_approach_orientation false = 不强求终点朝向（与 DWB 的
+      #     xy_goal_tolerance 0.25 配合，避免为对准朝向产生额外绕行）
+      #   allow_unknown false = 与 DWB 定稿一致（本图 87.9% 未知区，必须关）
+      how_many_corners: 8
+      w_euc_cost: 1.0
+      w_traversal_cost: 2.0
+      use_final_approach_orientation: false
+      allow_unknown: false
+      tolerance: 0.1
+
+planner_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: true
+
+recoveries_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    recovery_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_recoveries/Spin"
+    backup:
+      plugin: "nav2_recoveries/BackUp"
+    wait:
+      plugin: "nav2_recoveries/Wait"
+    global_frame: <robot_namespace>/odom
+    robot_base_frame: <robot_namespace>/base_link
+    transform_timeout: 0.1
+    use_sim_time: true
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+robot_state_publisher:
+  ros__parameters:
+    use_sim_time: true
+
+# 本段此前缺失，导致 velocity_smoother 节点吃 Nav2 编译期默认 max_velocity [0.5, 0, 2.5]
+# ——实测 cmd_vel.x 最大值恰好 0.500，DWB 与 TEB 的局部规划器限速都被它压在下面，
+# 这是「车速上不去」的真正原因（`navigation_launch.py:259-263` 把 cmd_vel_smoothed
+# 重映射为 cmd_vel，即平滑器在控制链路上，不可绕过）。
+# max_accel/max_decel 与 DWB 的 acc_lim/decel_lim 对齐，避免平滑器引入额外限速。
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true
+    smoothing_frequency: 20.0
+    scale_velocities: False
+    feedback: "OPEN_LOOP"
+    max_velocity: [1.5, 0.0, 2.5]
+    min_velocity: [-1.5, 0.0, -2.5]
+    max_accel: [2.5, 0.0, 3.2]
+    max_decel: [-2.5, 0.0, -3.2]
+    odom_topic: "odom"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+
+waypoint_follower:
+  ros__parameters:
+    loop_rate: 20
+    stop_on_failure: false
+    waypoint_task_executor_plugin: "wait_at_waypoint"
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: True
+      waypoint_pause_duration: 200
