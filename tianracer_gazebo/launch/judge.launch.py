@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # 裁判系统 launch：只启动 judge_system 裁判节点与计分板窗口。
-# 主程序（f1tenth_racer 竞速状态机）不在此启动——对齐 ROS1 原版 judge_system.so，
+# 主程序（f1tenth_racer 竞速状态机）不在此启动——
 # 由裁判在点「启动」时自己 Popen 拉起，重置/完赛/犯规/退出时终止。
 # 用法：
 #   ros2 launch tianracer_gazebo judge.launch.py
@@ -89,7 +89,7 @@ def generate_launch_description():
             }],
             output='screen',
         ),
-        # 计分板窗口：订阅 /score_display（原版 .so 内嵌 tkinter 界面的等价物）。
+        # 计分板窗口：订阅 /score_display 显示实时分数（tkinter 实现）。
         # 无显示环境时节点自身会告警并跳过，不影响计分。
         Node(
             package='tianracer_gazebo',

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # 裁判系统监控评分窗口（tkinter），深色遥测仪表盘风格。
 #
-# 界面文案与交互要素沿用 ROS 1 原版监控评分系统的样式：
+# 界面文案与交互要素按本项目的评分展示需求自行定义：
 #   标题   : "Tianbot 官方监控评分系统"        几何: 1000x400
 #   字体   : 数字用 DSEG7Classic（数码管），标签用 Noto Sans CJK SC
 #   标签   : ROBOT_NAME / WORLD_NAME / 总分数为 / 用时
@@ -52,7 +52,7 @@ THEME = {
 }
 
 # /score_display 的 state 字段 -> 状态行渲染（status 文案, THEME 配色键, 提示行文案）。
-# 'finished' 的文案取自原版 judge_system.so 的字符串常量「完成全局比赛」。
+# 完赛状态 'finished' 对应的界面文案为「完成全局比赛」。
 # 未携带 state（旧版发布者）时按 running 兜底。
 STATE_TEXT = {
     'idle':     ('请点击启动按钮开始测评', 'amber', '计时与分数已清零，请点击启动按钮开始测评'),

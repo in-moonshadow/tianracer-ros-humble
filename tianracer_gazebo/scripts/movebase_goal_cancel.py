@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# ROS 1 (tianracer_gazebo/scripts/utils/movebase_goal_cancel.so) -> ROS 2 Humble 重写。
+# 取消导航目标工具。
 # MoveBaseCancel：取消 move_base 所有目标 -> Nav2 的 <action>/_action/cancel_goal 服务。
-# 原 .so 为 python3.8 ABI，无法加载；接口重建：wait_for_subscribers / run_timer。
+# 对外接口：wait_for_subscribers / run_timer。
 #
 # 注意：rclpy 的 ActionClient 既没有 cancel_all_goals_async 也没有 cancel_goal_async，
 # 旧写法每次调用都抛 AttributeError。取消「全部目标」的正确做法是调用 action 的隐藏

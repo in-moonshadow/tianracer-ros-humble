@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# ROS 1 (tianracer_gazebo/scripts/md5.so) -> ROS 2 Humble 纯 Python 重写。
-# md5.so 是 Cython 编译的模型完整性校验工具（python3.8 ABI，无法在 python3.10 加载）。
-# 接口重建：md5sum / format_hash / hash_file / hash_folder / verify_hash。
+# 模型完整性校验工具（纯 Python 实现）。
+# 对外接口：md5sum / format_hash / hash_file / hash_folder / verify_hash。
 #
-# 官方模型哈希清单从 md5.so 二进制内嵌改为可维护的 yaml：
+# 官方模型哈希清单以可维护的 yaml 形式给出：
 #   <pkg>/waypoint_race/official_model_hash.yaml
 # 其中 key 为相对路径（相对 tianracer_gazebo 包根），value 为 32 位小写 hex md5。
 
@@ -16,7 +15,7 @@ from ament_index_python.packages import get_package_share_directory
 
 PACKAGE = "tianracer_gazebo"
 
-# 需要校验的模型/世界/URDF 文件（相对包根，来自 md5.so 内嵌清单）
+# 需要校验的模型/世界/URDF 文件（相对包根，来自官方模型哈希清单）
 OFFICIAL_FILES = [
     "urdf/macros_tf.xacro",
     "urdf/macros.xacro",

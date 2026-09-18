@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# 裁判系统：ROS 1 版本（judge_system.so + judge_system_node.py）→ ROS 2 Humble 的纯 rclpy 重写。
+# 裁判系统：依据比赛规则自行实现的 ROS 2 Humble 纯 rclpy 版本。
 #
 # 本文件实现：
 #   - md5 模型防篡改校验（md5_check.py）
@@ -9,7 +9,7 @@
 #   - 评分（自定规则，见下）
 #   - start / brake / reset 控制
 #
-# ===== 评分规则（对齐原版 judge_system.so 的 Judge.cal_racing_score）=====
+# ===== 评分规则（依据比赛评分办法自行实现）=====
 #
 # 赛道模型：check_points.yaml 的 N 个点两两配对成「检查门」线段（每 2 点 = 1 门，
 #           通常 6 点 = 3 门）。车按顺序 0→1→2→0→1→2… 循环压门（position_check.analysis
@@ -32,7 +32,7 @@
 # 停止计时并统计分数」「距离上一次完成标记点检测时间超过 30s，认为系统已经终止——
 # 停止计时并统计分数」。注意官方语义是终止并结算分数，不是扣分，移植版 _finalize 与之对齐。
 #
-# 主程序生命周期对齐 ROS1 原版 judge_system.so：主程序不进 launch，由裁判在「启动」时
+# 主程序生命周期：主程序不进 launch，由裁判在「启动」时
 # Popen 拉起（对应界面文案「目标代码已启动」），重置/完赛/犯规/退出时终止。故主程序自身
 # 不含启动信号订阅，也不需要。
 #
@@ -111,7 +111,7 @@ class Judger(Node):
         self.declare_parameter('world', os.getenv("TIANRACER_WORLD", "tianracer_racetrack"))
         self.declare_parameter('lap_count', 3)
         # 官方规则「电子裁判系统终止条件」：距离上一次小车运动超过 10s，认为小车已停止
-        # ——停止计时并统计分数。（原版 .so 同样含 "(over 10s)" 的判据文案）
+        # ——停止计时并统计分数（判据文案含 "(over 10s)"）。
         self.declare_parameter('stop_time_threshold', 10.0)
         # 官方规则同上：距离上一次完成标记点检测时间超过 30s，认为系统已经终止
         # ——停止计时并统计分数。用于车仍在动但一直过不了门（绕圈/定位漂移）的兜底。
@@ -155,7 +155,7 @@ class Judger(Node):
         self._initpose_timer = None       # reset 后延迟发 initialpose 的一次性定时器
 
         # 主程序（f1tenth_racer 竞速状态机）子进程句柄。
-        # 对齐 ROS1 原版 judge_system.so：launch 里不含主程序，由裁判在「启动」时拉起、
+        # launch 里不含主程序，由裁判在「启动」时拉起、
         # 在 terminate_test / reset_racecar 时杀掉。原版命令为
         #   Popen("rosrun tianracer_gazebo f1tenth_racer.py __ns:=<ns>")
         # 终止为 ps aux | grep f1tenth_racer | awk '{print "kill -9", $2}' | sh
@@ -357,7 +357,7 @@ class Judger(Node):
 
         注意 _speed_score 平时恒为 0，只在完赛结算时算一次（见 _finalize）——这是原版
         的语义：界面的分数标签绑的是 self.scores，速度分只在过终点那一次并入
-        scores。实测（noetic 容器跑原版 .so）：比赛中 times=90.06 时界面显示 25
+        scores。实测：比赛中 times=90.06 时界面显示 25
         （纯门分），而 25 + 35*42/90.06 ≈ 41.3；提前终止时界面上仍是门分。
         """
         self._total_score = round(self._scores + self._speed_score, 3)
