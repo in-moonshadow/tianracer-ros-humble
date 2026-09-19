@@ -144,10 +144,39 @@ source install/setup.bash
 （Humble 下 TEB 与 costmap_converter 没有 apt 包）：
 
 ```bash
+sudo apt install python3-vcstool        # 提供 vcs 命令（ros-dev-tools 也包含它）
 vcs import src < tianracer.repos
 rosdep install --from-paths . --ignore-src -r -y
 colcon build --symlink-install
 ```
+
+#### 关于 OpenCV 版本（只有装了第二套 OpenCV 才需要看）
+
+**如果你的机器上只有 ROS 2 配套的那套 OpenCV**（`apt install libopencv-dev` 装的 4.5.4），
+上面的命令**直接就能编过，不需要任何额外参数**。
+
+只有当你**另外还装了一套 OpenCV**（常见于在 `/usr/local` 下源码编译的 4.11）时，
+`costmap_converter` 才会编译失败，报：
+
+```
+error: invalid new-expression of abstract class type 'BlobDetector'
+```
+
+原因：`find_package(OpenCV)` 会优先命中 `/usr/local` 的 4.11，而 4.11 把
+`cv::SimpleBlobDetector::setParams/getParams` 改成了纯虚函数。把 OpenCV 指回 apt 那套即可，
+路径按**当前机器的架构**自动展开（x86_64 / aarch64 通用，无需手改）：
+
+```bash
+colcon build --symlink-install --cmake-args \
+  -DOpenCV_DIR=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/opencv4
+```
+
+本工作区只有 `costmap_converter` 用到 OpenCV，其余包不受影响。
+
+> ⚠️ **不要**把这个参数写死成仓库里的 `colcon_defaults.yaml`。除了「机器相关配置不该入库」，
+> 还有一个更隐蔽的原因：CMake 遇到**不存在的** `OpenCV_DIR` 是**静默回退**的（不报错）。
+> 于是一个硬编码 x86_64 路径的文件，在 aarch64/Jetson 上会毫无提示地失效，
+> 恰恰在最需要它的平台上不起作用——必须报错才好排查。
 
 ### 3.4 构建自检
 
@@ -501,6 +530,8 @@ ros2 launch tianracer_gazebo tianracer_race.launch.py \
 | 改了参数档却不生效 | 新档未构建（查的是 install 侧） | `colcon build --symlink-install --packages-select tianracer_navigation2` |
 | 车在窄处卡住不动 | 代价地图上 footprint 贴上致命格 | 调 `inflation_radius`（global 侧）；不要缩小 footprint 硬挤 |
 | 速度上不去 | `max_vel_x` 与 `velocity_smoother` 的上限不一致 | 两处必须成组改（改一处会被平滑器夹回） |
+| `vcs: command not found` | 未装 `python3-vcstool` | `sudo apt install python3-vcstool`（仅 TEB 路径需要，见 [3.3](#33-可选teb-规划器)） |
+| `costmap_converter` 报 `abstract class type 'BlobDetector'` | 机器上装了两套 OpenCV | 加 `-DOpenCV_DIR=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/opencv4`（见 [3.3](#33-可选teb-规划器)） |
 | 计分板分数看着「不对」 | 速度分只在完赛结算时并入 | 比赛中显示的是纯门分，属预期行为（见 [5.1](#51-总分--门分--速度分)） |
 
 ---

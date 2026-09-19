@@ -1,9 +1,8 @@
 import os
 import time
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import ExecuteProcess
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch_ros.actions import Node
 
 default_namespace = os.environ.get("TIANBOT_NAME", "")
 default_namespace = f"" if default_namespace == '' or default_namespace =='/' else default_namespace
@@ -26,16 +25,21 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            # ros2 service call /finish_trajectory cartographer_ros_msgs/srv/FinishTrajectory "{trajectory_id: 0}"
+            # 结束当前轨迹，再写出 pbstream 状态文件。
+            # 用 argv 列表 + shell=False：请求体（YAML 字符串）作为单个参数传入，
+            # 不经 shell 二次解析，避免路径含空格/引号时被拆坏。
             ExecuteProcess(
-                cmd=[['ros2 service call ', f'{service_namespace_prefix}/finish_trajectory ', 'cartographer_ros_msgs/srv/FinishTrajectory ', "'{trajectory_id: 0}'"]], 
-                shell=True
+                cmd=['ros2', 'service', 'call',
+                     f'{service_namespace_prefix}/finish_trajectory',
+                     'cartographer_ros_msgs/srv/FinishTrajectory',
+                     '{trajectory_id: 0}'],
             ),
-
-            # ros2 service call /write_state cartographer_ros_msgs/srv/WriteState "{filename: '${HOME}/diablo_ws/src/hcx_ros2/diablo_navigation2/pbstreams/tianbotoffice-602.pbstream', include_unfinished_submaps: "true"}"
             ExecuteProcess(
-                cmd=[['ros2 service call ', f'{service_namespace_prefix}/write_state ', 'cartographer_ros_msgs/srv/WriteState ', "'{filename: '", f'{map_save_config}', "' , include_unfinished_submaps: 'true'}'"]],
-                shell=True
+                cmd=['ros2', 'service', 'call',
+                     f'{service_namespace_prefix}/write_state',
+                     'cartographer_ros_msgs/srv/WriteState',
+                     "{filename: '%s', include_unfinished_submaps: true}"
+                     % map_save_config],
             ),
         ]
     )

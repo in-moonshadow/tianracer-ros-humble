@@ -59,6 +59,10 @@ build/
 install/
 log/
 
+# 本机专用的 colcon 构建参数（如 OpenCV 路径），随机器而异，不应随仓库发布。
+# 需要时按教程 §3.3 的说明在命令行显式传 --cmake-args。
+colcon_defaults.yaml
+
 # 编辑器本地状态
 .claude/
 

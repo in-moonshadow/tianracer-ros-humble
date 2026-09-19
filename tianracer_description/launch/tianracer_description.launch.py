@@ -17,9 +17,6 @@ default_frame_id = f"base_link" if default_namespace == '' else f"{default_names
 ARGUMENTS = [
     DeclareLaunchArgument('prefix', default_value=default_namespace,
                           description='Prefix for robot joints and links'),
-    DeclareLaunchArgument('use_gazebo', default_value='false',
-                          choices=['true', 'false'],
-                          description='Whether to use Gazebo simulation')
 ]
 
 def generate_launch_description():
