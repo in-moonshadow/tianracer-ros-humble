@@ -1,0 +1,217 @@
+<?xml version="1.0"?>
+<robot name="tianracer" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Gazebo references（物理属性） -->
+  <gazebo reference="${tf_prefix}base_link">
+    <mu1 value="0.0" />
+    <mu2 value="0.0" />
+    <kp value="10000000.0" />
+    <kd value="1.0" />
+    <material>Gazebo/DarkGray</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}left_rear_wheel">
+    <mu1 value="2.0" />
+    <mu2 value="2.0" />
+    <kp value="10000000.0" />
+    <kd value="1.0" />
+    <fdir1 value="1 0 0" />
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}right_rear_wheel">
+    <mu1 value="2.0" />
+    <mu2 value="2.0" />
+    <kp value="10000000.0" />
+    <kd value="1.0" />
+    <fdir1 value="1 0 0" />
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}left_front_wheel">
+    <mu1 value="2.0" />
+    <mu2 value="2.0" />
+    <kp value="10000000.0" />
+    <kd value="1.0" />
+    <fdir1 value="0 0 1" />
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}right_front_wheel">
+    <mu1 value="2.0" />
+    <mu2 value="2.0" />
+    <kp value="10000000.0" />
+    <kd value="1.0" />
+    <fdir1 value="0 0 1" />
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}laser">
+    <material>Gazebo/Gray</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}camera">
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}real_sense">
+    <material>Gazebo/LightGray</material>
+  </gazebo>
+
+  <gazebo reference="${tf_prefix}imu_link">
+    <material>Gazebo/Orange</material>
+  </gazebo>
+
+  <!-- ros2_control 硬件接口定义（gz_ros2_control 读取） -->
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="left_rear_wheel_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_rear_wheel_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_front_wheel_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_front_wheel_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_steering_hinge_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_steering_hinge_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <!-- gz_ros2_control 系统插件（加载 tianracer_control.yaml） -->
+  <gazebo>
+    <plugin name="gz_ros2_control::GazeboSimROS2ControlPlugin"
+            filename="libgz_ros2_control-system.so">
+      <parameters>$(find tianracer_gazebo)/config/tianracer_control.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+  <!-- gz-sim 里程计系统插件：发布 gz.msgs.Odometry，由 ros_gz_bridge 桥到 /odom。
+       ign-gazebo6 (Fortress) 要求 <odom_frame>/<robot_base_frame>/<dimensions> 三个标签，
+       缺 <dimensions> 时插件不发布 odom->base_footprint TF（slam_toolbox/Navi2 依赖该 TF）。
+       <odom_frame_name>/<body_name> 是 gz-sim7 (Garden) 标签，v6 不识别。 -->
+  <gazebo>
+    <plugin name="ignition::gazebo::systems::OdometryPublisher"
+            filename="libignition-gazebo-odometry-publisher-system.so">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>${tf_prefix}base_footprint</robot_base_frame>
+      <dimensions>2D</dimensions>
+      <odom_frame_name>odom</odom_frame_name>
+      <body_name>${tf_prefix}base_footprint</body_name>
+      <topic>odom</topic>
+    </plugin>
+  </gazebo>
+
+  <!-- 激光雷达（gz-sim7 不支持 CPU ray，必须用 GPU lidar，依赖渲染引擎） -->
+  <gazebo reference="${tf_prefix}laser">
+    <sensor type="gpu_lidar" name="hokuyo_sensor">
+      <pose>0 0 0.0124 0 0 0</pose>
+      <visualize>false</visualize>
+      <always_on>true</always_on>
+      <update_rate>40</update_rate>
+      <topic>scan</topic>
+      <ignition_frame_id>${tf_prefix}laser</ignition_frame_id>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>1081</samples>
+            <resolution>1</resolution>
+            <min_angle>-2.3561944902</min_angle>
+            <max_angle>2.3561944902</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.1</min>
+          <max>10.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </lidar>
+    </sensor>
+  </gazebo>
+
+  <!-- 单目相机 -->
+  <gazebo reference="${tf_prefix}camera_link">
+    <sensor type="camera" name="camera">
+      <update_rate>30.0</update_rate>
+      <topic>camera</topic>
+      <ignition_frame_id>${tf_prefix}camera_link</ignition_frame_id>
+      <camera name="camera">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>800</width>
+          <height>800</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- RGBD 深度相机 -->
+  <gazebo reference="${tf_prefix}real_sense">
+    <sensor type="depth" name="real_sense">
+      <always_on>true</always_on>
+      <update_rate>20.0</update_rate>
+      <topic>depth</topic>
+      <camera>
+        <horizontal_fov>${60.0*3.14/180.0}</horizontal_fov>
+        <image>
+          <format>R8G8B8</format>
+          <width>640</width>
+          <height>480</height>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>8.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- IMU -->
+  <gazebo reference="${tf_prefix}imu_link">
+    <gravity>true</gravity>
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>false</visualize>
+      <topic>imu</topic>
+      <pose>0 0 0 0 0 0</pose>
+      <ignition_frame_id>${tf_prefix}imu_link</ignition_frame_id>
+    </sensor>
+  </gazebo>
+
+</robot>

@@ -1,0 +1,103 @@
+# NOTICE — 归属与许可证声明
+
+## 一、本项目是上游项目的 ROS 2 Humble 版本
+
+**`tianracer-ros-humble` 是上游项目 `tianracer` 的 ROS 2 Humble 版本。**
+
+| 项目 | 内容 |
+|---|---|
+| 本项目 | `tianracer-ros-humble` — ROS 2 Humble / colcon 工作区 |
+| 上游项目 | `tianracer` — 天驰无人竞速车 |
+| 上游仓库 | https://github.com/tianbot/tianracer |
+| 上游开发方 | 天之博特（Tianbot） |
+| 本项目所基于的上游分支 | `humble-devel` |
+| 与上游的关系 | **衍生作品（derivative work）**，在上游 `humble-devel` 基础上继续开发 |
+
+上游项目原始版本基于 **ROS 1**。本项目是其 **ROS 2 Humble** 移植与持续开发版本，主要差异：
+
+- 构建系统由 `catkin` 改为 `colcon` / `ament`，全部 Python 代码为 Python 3；
+- 仿真后端由 **Gazebo Classic** 改为 **Gazebo Sim 6 (Fortress)**，经 `ros_gz_sim` /
+  `ros_gz_bridge` / `gz_ros2_control` 与 ROS 2 通信；
+- 导航栈由 `move_base` 改为 **Nav2**（默认 `navfn_dwb`，另提供 TEB / Smac / Theta* / MPPI 变体）；
+- 竞赛裁判系统以 `rclpy` 重新实现；
+- 移除了实机相关内容（硬件 bringup、底盘串口驱动、GPS、遥控、Jetson 部署、实机测试），
+  本工作区为**纯仿真**栈。
+
+上游项目的名称、徽标与文档著作权归其原作者与开发方所有。
+
+## 二、许可证
+
+本项目整体以 **GNU General Public License v3.0** 发布，全文见 [`LICENSE`](LICENSE)。
+
+**为什么是 GPL-3.0：** 上游仓库根目录即以 GPL-3.0 发布，依 GPL-3.0 的传染性条款，
+基于它开发的衍生作品必须同样以 GPL-3.0 分发并提供完整源码。本项目遵守该条款。
+
+**各包许可证的沿革：** 上游各 `package.xml` 的许可证声明并不一致
+（`GPLv3` / `MIT` / 未声明占位）。本项目发布时统一声明为 `GPLv3`，其中：
+
+- 上游声明为 `GPLv3` 的包（`tianracer`、`tianracer_description`、`tianracer_rviz` 等）：
+  衍生作品继续以 GPL-3.0 分发。
+- 上游**未声明**许可证的包（`tianracer_slam`、`tianracer_vision` 上游为 `TODO` 占位）：
+  按上游仓库根 `LICENSE`（GPL-3.0）一并覆盖。
+- **上游以 `MIT` 声明的包：`tianracer_navigation2`。**
+  MIT 许可证允许再分发与再许可，但要求**保留其版权声明与许可声明**。
+  该声明在此原样保留如下：
+
+```
+MIT License
+
+Copyright (c) Tianbot (https://github.com/tianbot/tianracer)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+> **两点说明：**
+> 1. 上游该包仅在 `package.xml` 写了 `<license>MIT</license>`，**没有附独立的版权行**。
+>    上面代码块中的 `Copyright (c) ...` 一行是**据上游仓库与开发方信息补记的标注，不是上游原文**；
+>    MIT 条款正文本身为标准文本，未作改动。
+> 2. 该包 `package.xml` 中的许可证声明在本次移植中已被改为 `GPLv3` 以保持仓库口径统一；
+>    上述 MIT 条款按 MIT 的要求在此保留，适用于源自上游的该部分代码。
+>    如果你更希望保留该包原有的 MIT 声明，把该包 `package.xml` 改回 `<license>MIT</license>` 即可，
+>    本 NOTICE 已足以满足两种口径。
+
+## 三、版权归属
+
+- 源自上游的代码，版权归上游原作者与开发方（天之博特 / Tianbot）所有，本项目不主张其版权。
+- 本项目新增与修改的部分，版权归本项目作者所有，同样以 GPL-3.0 授权。
+
+## 四、免责声明
+
+本软件按「原样」提供，不附带任何明示或默示的担保。使用本软件（尤其是在真实硬件上运行）
+所产生的任何风险与后果，由使用者自行承担。
+
+---
+
+## English Summary
+
+**`tianracer-ros-humble` is the ROS 2 Humble version of the upstream project
+[`tianracer`](https://github.com/tianbot/tianracer) by Tianbot.** It is a derivative work based on
+the upstream `humble-devel` branch. The upstream project targets ROS 1; this project is its
+ROS 2 Humble port (colcon/ament, Python 3, Gazebo Sim 6 Fortress, Nav2, an `rclpy` race judge),
+with the real-hardware packages removed.
+
+This project is distributed under the **GNU General Public License v3.0** (see `LICENSE`), because
+the upstream repository is released under GPL-3.0 and a derivative work must be distributed under
+the same license. Previously-existing upstream license notices are preserved — in particular, the
+upstream `tianracer_navigation2` package was declared under the MIT license, whose notice is
+retained above. Copyright of upstream code remains with its original authors.

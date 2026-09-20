@@ -1,0 +1,43 @@
+# 官方模型/世界/URDF 文件 md5 清单（比赛防篡改校验基准）。
+# key=相对 tianracer_gazebo 包根路径，value=32 位小写 hex md5。
+# 由 md5_check.py 配套维护；模型文件更新后需重新生成。
+urdf/macros.xacro: c8a5bcac77658f8f64efed700349387b
+urdf/macros_tf.xacro: c8a5bcac77658f8f64efed700349387b
+urdf/racecar.gazebo: 884c705bb706bfd28ce6b3c70771ea04
+urdf/racecar.urdf.gazebo: 01887b96eff7b220fc94ced5bb50c564
+urdf/tianracer.urdf.xacro: 63d894ccb2328779a2b502410febd559
+urdf/tianracer.xacro: 88f724a213eab7f69a8a3bf3052da9fc
+urdf/tianracer_run.urdf.xacro: e783ba59aa98497661f796363a44bb65
+urdf/tianracer_run.xacro: 8b53bd7b91cae5a82a08a5123d982c5e
+worlds/race_with_cones.world: 024fa2627c0fe2a27e5712e3d001026a
+worlds/racetrack_1.world: e5e33f8fa997d7e9ed7d092f7a362177
+worlds/racetrack_1/meshes/base_link.dae: 3fd7487016c4d86c0f6b9427be708103
+worlds/racetrack_1/meshes/base_link.stl: f20fa8d45ad4d8c46c606011ef439fa5
+worlds/racetrack_1/meshes/ground.png: 21becddc5bfd9237b2ae291263e562ee
+worlds/racetrack_1/meshes/wall.stl: 7675c43291a193a130f5f11db7f1e784
+worlds/racetrack_1/meshes/wall_link.stl: 26f6b42f11bf41061666d3e1792d82cd
+worlds/racetrack_1/model.config: f3f3ecfc993f616de6c92c822da7fae6
+worlds/racetrack_1/model.sdf: 315d59c4e6dbd58b6df94428562082f9
+worlds/raicom.world: d4eb13d8fa5d53c9a05b98a8bcbd3e92
+worlds/raicom/meshes/base_link.dae: 012a7a323a4e25a1a1e41d426611ca39
+worlds/raicom/meshes/ground.png: 219c8553fa24532853bbf59ef7e96855
+worlds/raicom/model.config: 7cd8ef1324980371059f8ab2a4b3bb69
+worlds/raicom/model.sdf: a22259ce73c330734250085532c62db8
+worlds/room_mini.world: b8d729adbf3e673c251079b2151c903a
+worlds/test_indoor.world: 09d9b0ba44b19f34a8548f9e432c9ac5
+worlds/test_indoor/meshes/base_link.dae: 94f01239571647a737811069b45f5143
+worlds/test_indoor/meshes/base_link.stl: d6703627c9b48a98e1b9af139ba56770
+worlds/test_indoor/meshes/ground.png: 3d16dcefb858e36f573b8bbd7a908112
+worlds/test_indoor/meshes/wall_link.stl: a2b4fda7d32fdc86fe208c93ebfd1e6d
+worlds/test_indoor/model.config: b8d0f934b85aa0da2d17354d4f85d541
+worlds/test_indoor/model.sdf: 58aa14848051dc08d01771952959be47
+worlds/tianracer_racetrack.world: 493b8ae73938a75a70bfd4c00d52b2c3
+worlds/tianracer_racetrack/meshes/aa2_iflytek.png: 9fa565455a179b118a361b7b7028b1e3
+worlds/tianracer_racetrack/meshes/aa3.png: d599b79d645d12a3c94b5a1f564577e8
+worlds/tianracer_racetrack/meshes/aa3_iflytek.png: e5ae2e595a6033111f883e90e0ff81aa
+worlds/tianracer_racetrack/meshes/base_link.STL: 37ab0277a25ec4e56df550d8aac69262
+worlds/tianracer_racetrack/meshes/base_link.dae: de4ba1a4736d462657d912f847d6ee31
+worlds/tianracer_racetrack/meshes/base_link_iflytek.dae: c6f4ab1df5072c855f6856bc1fc1bb07
+worlds/tianracer_racetrack/meshes/wall.STL: 5824ff704e60e6a82255b0d8cc3f43ce
+worlds/tianracer_racetrack/model.config: 907c5d39a965b80b1990cb92df772f76
+worlds/tianracer_racetrack/tianracer_racetrack.sdf: 79808df5899230cf84078b1a4f505451

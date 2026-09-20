@@ -1,0 +1,76 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Something else
+*.DS_Store
+*.swp
+
+
+# python compiled
+*.pyc
+__pycache__/
+
+# map file
+*.pgm
+
+# speciic cfg
+99.my_tianracer.sh.em
+tianbot_office*.yaml
+tianbot_maps*.yaml
+tianracer_slam/maps/*.yaml
+tianracer_slam/maps/*.png
+# unused file
+imgui.ini
+.vscode
+*/.ipynb_checkpoints/*
+
+# colcon build artifacts (ROS 2)
+build/
+install/
+log/
+
+# 本机专用的 colcon 构建参数（如 OpenCV 路径），随机器而异，不应随仓库发布。
+# 需要时按教程 §3.3 的说明在命令行显式传 --cmake-args。
+colcon_defaults.yaml
+
+# 编辑器本地状态
+.claude/
+
+# 外部源码依赖（由 tianracer.repos 声明，用 vcs import 拉取，不入库）
+/src/
+
+# 随仓库发布的地图资源：上面的 *.pgm / maps/*.yaml 规则本意是挡住建图产物，
+# 但本仓库自带的地图是赛道必需资源，必须入库，故在此显式放行。
+!tianracer_gazebo/maps/*.pgm
+!tianracer_slam/maps/*.pgm
+!tianracer_slam/maps/*.yaml

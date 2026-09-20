@@ -1,0 +1,8 @@
+# tianracer 仿真栈默认环境变量。
+# 原属 tianracer_bringup/env-hooks/，因该包（实机总装）已删除，迁入本包。
+# 只保留仿真链实际读取的项；原文件里的硬件配置项（串口/相机/GPS/手柄等）
+# 对应的是已删除的实机驱动包，不再注入。
+
+# 车型：compact / standard / fullsize。
+# 决定 vehicle_geometry.yaml 的轴距取值（由 vehicle_geometry.py 读取）。
+set;TIANRACER_BASE;compact

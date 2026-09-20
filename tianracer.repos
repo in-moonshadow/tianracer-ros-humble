@@ -1,0 +1,16 @@
+repositories:
+  cartographer_ros:
+    type: git
+    url: https://github.com/ros2/cartographer_ros
+    version: ros2
+  costmap_converter:
+    type: git
+    url: https://github.com/rst-tu-dortmund/costmap_converter
+    # 原为 ros2 分支：该分支面向比 Humble 更新的发行版（改用 cv_bridge/cv_bridge.hpp
+    # 等新版头文件），在 Humble 上编译失败。故改用配套的 humble 分支。
+    version: humble
+  teb_local_planner:
+    type: git
+    url: https://github.com/rst-tu-dortmund/teb_local_planner
+    # 同上：ros2-master 面向更新的发行版，Humble 对应分支是 humble-devel。
+    version: humble-devel
